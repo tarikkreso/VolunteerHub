@@ -1,0 +1,128 @@
+services:
+  # SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: volunteerhub-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
+      - MSSQL_PID=Developer
+    ports:
+      - "${SQL_PORT:-1433}:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - volunteerhub-network
+    healthcheck:
+      test: [ "CMD-SHELL", "(/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${DB_PASSWORD:-YourStrong@Passw0rd} -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ${DB_PASSWORD:-YourStrong@Passw0rd} -Q 'SELECT 1') || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: volunteerhub-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672" # AMQP port
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - volunteerhub-network
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "check_running" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # VolunteerHub API
+  volunteerhub-api:
+    build:
+      context: ./backend
+      dockerfile: src/VolunteerHub.API/Dockerfile
+    container_name: volunteerhub-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=${DB_NAME:-220193};User Id=sa;Password=${DB_PASSWORD:-YourStrong@Passw0rd};TrustServerCertificate=True;
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=${RABBITMQ_PORT:-5672}
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASSWORD:-guest}
+      - Jwt__Key=${JWT_KEY:-YourSuperSecretKeyAtLeast32CharactersLong123!}
+      - Jwt__Issuer=${JWT_ISSUER:-VolunteerHub}
+      - Jwt__Audience=${JWT_AUDIENCE:-VolunteerHub}
+      - Stripe__SecretKey=${STRIPE_SECRET_KEY:-sk_test_your_stripe_secret_key}
+      - Stripe__PublishableKey=${STRIPE_PUBLISHABLE_KEY:-pk_test_your_stripe_publishable_key}
+      - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET:-whsec_your_webhook_secret}
+      - Smtp__Host=${SMTP_HOST:-mailhog}
+      - Smtp__Port=${SMTP_PORT:-1025}
+      - Smtp__Username=${SMTP_USERNAME:-}
+      - Smtp__Password=${SMTP_PASSWORD:-}
+      - Smtp__UseSsl=${SMTP_USE_SSL:-false}
+      - Smtp__FromEmail=${SMTP_FROM_EMAIL:-noreply@volunteerhub.ba}
+      - Smtp__FromName=${SMTP_FROM_NAME:-VolunteerHub}
+      - Auth__PasswordResetExpirationMinutes=30
+      - App__UseHttpsRedirection=false
+    ports:
+      - "7000:80"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    networks:
+      - volunteerhub-network
+    restart: unless-stopped
+
+  # VolunteerHub Worker Service
+  volunteerhub-worker:
+    build:
+      context: ./backend
+      dockerfile: src/VolunteerHub.Worker/Dockerfile
+    container_name: volunteerhub-worker
+    environment:
+      - DOTNET_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=${DB_NAME:-220193};User Id=sa;Password=${DB_PASSWORD:-YourStrong@Passw0rd};TrustServerCertificate=True;
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=${RABBITMQ_PORT:-5672}
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASSWORD:-guest}
+      - Smtp__Host=${SMTP_HOST:-mailhog}
+      - Smtp__Port=${SMTP_PORT:-1025}
+      - Smtp__Username=${SMTP_USERNAME:-}
+      - Smtp__Password=${SMTP_PASSWORD:-}
+      - Smtp__UseSsl=${SMTP_USE_SSL:-false}
+      - Smtp__FromEmail=${SMTP_FROM_EMAIL:-noreply@volunteerhub.ba}
+      - Smtp__FromName=${SMTP_FROM_NAME:-VolunteerHub}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - volunteerhub-network
+    restart: unless-stopped
+
+  # MailHog — email testing
+  mailhog:
+    image: mailhog/mailhog
+    container_name: volunteerhub-mailhog
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"   # SMTP
+      - "${MAILHOG_WEB_PORT:-8025}:8025"   # Web UI
+    networks:
+      - volunteerhub-network
+
+networks:
+  volunteerhub-network:
+    driver: bridge
+
+volumes:
+  sqlserver_data:
+  rabbitmq_data:
