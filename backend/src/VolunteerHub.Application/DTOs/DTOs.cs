@@ -17,7 +17,9 @@ public class UserDto : BaseDto
     public string? ProfileImageUrl { get; set; }
     public string? Bio { get; set; }
     public string Role { get; set; } = string.Empty;
+    public int? CityId { get; set; }
     public string? CityName { get; set; }
+    public bool IsActive { get; set; }
     public double TotalHours { get; set; }
     public int TotalEvents { get; set; }
 }
@@ -44,13 +46,25 @@ public class UserCreateDto
 
 public class UserUpdateDto
 {
+    [MaxLength(100)]
     public string? FirstName { get; set; }
+
+    [MaxLength(100)]
     public string? LastName { get; set; }
+
+    [Phone, MaxLength(30)]
     public string? Phone { get; set; }
+
+    [EmailAddress, MaxLength(256)]
     public string? Email { get; set; }
+
+    [MaxLength(500)]
     public string? ProfileImageUrl { get; set; }
+
+    [MaxLength(1000)]
     public string? Bio { get; set; }
     public int? CityId { get; set; }
+    public bool? IsActive { get; set; }
 }
 
 public class UpdateProfileRequestDto
@@ -155,6 +169,7 @@ public class EventDto : BaseDto
     public string Status { get; set; } = string.Empty;
     public bool IsFeatured { get; set; }
     public string CategoryName { get; set; } = string.Empty;
+    public int? CityId { get; set; }
     public string? CityName { get; set; }
     public int? OrganizationId { get; set; }
     public string? OrganizationName { get; set; }
@@ -257,6 +272,12 @@ public class ShiftRegistrationDto : BaseDto
     public double? HoursWorked { get; set; }
     public bool IsSuspicious { get; set; }
     public string? AdminNotes { get; set; }
+    public int? ApprovedByUserId { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public int? RejectedByUserId { get; set; }
+    public DateTime? RejectedAt { get; set; }
+    public int? FinalApprovedByUserId { get; set; }
+    public DateTime? FinalApprovedAt { get; set; }
 }
 
 public class ShiftRegistrationCreateDto
@@ -345,7 +366,7 @@ public class DonationDto : BaseDto
     public string CampaignTitle { get; set; } = string.Empty;
 }
 
-public class DonationCreateDto
+public class PaymentIntentRequestDto
 {
     [Range(0.5, 1000000)]
     public decimal Amount { get; set; }
@@ -361,16 +382,27 @@ public class DonationCreateDto
     [MaxLength(500)]
     public string? Message { get; set; }
 
-    [MaxLength(200)]
-    public string? StripePaymentIntentId { get; set; }
+    [MaxLength(100)]
+    public string? IdempotencyKey { get; set; }
 }
 
-public class PaymentIntentRequestDto
+public class PaymentIntentResponseDto
+{
+    public string ClientSecret { get; set; } = string.Empty;
+    public string PaymentIntentId { get; set; } = string.Empty;
+    public string PublishableKey { get; set; } = string.Empty;
+}
+
+public class StripeDonationCreateDto
 {
     public decimal Amount { get; set; }
     public int CampaignId { get; set; }
     public bool IsAnonymous { get; set; }
     public string? DonorName { get; set; }
+    public string? Message { get; set; }
+    public string PaymentIntentId { get; set; } = string.Empty;
+    public string? ChargeId { get; set; }
+    public string Currency { get; set; } = "BAM";
 }
 
 public class SkillDto : BaseDto

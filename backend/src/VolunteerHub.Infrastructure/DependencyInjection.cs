@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<ILeaderboardService, LeaderboardService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IUserSkillService, UserSkillService>();
+        services.AddScoped<IReferenceDataService, ReferenceDataService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IRecommendationService, RecommendationService>();

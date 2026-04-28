@@ -26,22 +26,40 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<UserDto>> GetById(int id)
     {
         var result = await _userService.GetByIdAsync(id);
-        if (result == null) return NotFound(new { message = "Korisnik nije pronađen." });
+        if (result == null)
+        {
+            return NotFound(new { message = "Korisnik nije pronađen." });
+        }
+
         return Ok(result);
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Update(int id, [FromBody] UserUpdateDto dto)
     {
-        var success = await _userService.UpdateAsync(id, dto);
-        if (!success) return NotFound(new { message = "Korisnik nije pronađen." });
-        return NoContent();
+        try
+        {
+            var success = await _userService.UpdateAsync(id, dto);
+            if (!success)
+            {
+                return NotFound(new { message = "Korisnik nije pronađen." });
+            }
+
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpGet("{id}/stats")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<UserStatsDto>> GetStats(int id)
     {
         var stats = await _userService.GetStatsAsync(id);

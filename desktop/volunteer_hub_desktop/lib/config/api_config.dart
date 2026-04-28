@@ -1,4 +1,4 @@
-/// API configuration for the VolunteerHub desktop admin app
+﻿/// API configuration for the VolunteerHub desktop admin app
 /// Configure API URL using: flutter run --dart-define=API_URL=http://your-api-url
 class ApiConfig {
   // Get API URL from environment variable or use default

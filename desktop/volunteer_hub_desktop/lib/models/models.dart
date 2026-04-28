@@ -1,4 +1,4 @@
-// ---- Auth ----
+﻿// ---- Auth ----
 class LoginResponse {
   final String token;
   final UserDto user;

@@ -177,8 +177,27 @@ docker-compose ps
 
 Nakon pokretanja:
 - **API + Swagger:** http://localhost:7000/swagger
-- **RabbitMQ Management:** http://localhost:15672 (guest / guest)
+- **RabbitMQ Management:** http://localhost:15672 (credentials from `.env`)
 - **MailHog Web UI:** http://localhost:8025
+
+### Testiranje RabbitMQ-a, worker servisa i obavijesti
+
+Najbrzi dokaz da sistem radi je ovaj tok:
+
+1. Pokreni `docker-compose up -d`.
+2. Prijavi se u aplikaciju ili otvori Swagger.
+3. Izazovi jedan od dogadjaja:
+   - `POST /api/auth/forgot-password`
+   - `POST /api/eventregistrations`
+   - `POST /api/shiftregistrations/register/{shiftId}`
+   - `PUT /api/shiftregistrations/{id}/approve`
+   - `PUT /api/shiftregistrations/{id}/reject`
+   - `POST /api/donations`
+4. Provjeri rezultat:
+   - poruka se pojavi u RabbitMQ queue-u
+   - worker je obradi u pozadini
+   - email stigne u MailHog
+   - za korisnicke tokove se pojavi nova stavka u `/api/notifications`
 
 > Baza se automatski kreira i puni test podacima putem `DatabaseSeeder` pri prvom pokretanju API-ja.
 

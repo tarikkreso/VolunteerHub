@@ -52,10 +52,13 @@ public class EventRegistrationsController : ControllerBase
     }
 
     [HttpDelete("{registrationId}")]
-    public async Task<IActionResult> Cancel(int registrationId)
+    public async Task<IActionResult> Cancel(int registrationId, [FromQuery] string reason)
     {
+        if (string.IsNullOrWhiteSpace(reason))
+            return BadRequest(new { message = "Razlog otkazivanja je obavezan." });
+
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var success = await _eventRegistrationService.CancelAsync(registrationId, userId);
+        var success = await _eventRegistrationService.CancelAsync(registrationId, userId, reason);
         if (!success)
             return NotFound(new { message = "Prijava na događaj nije pronađena." });
         return NoContent();

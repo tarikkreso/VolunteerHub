@@ -20,7 +20,6 @@ public class CampaignsController : ControllerBase
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<PagedResultDto<CampaignDto>>> GetAll([FromQuery] SearchRequestDto request)
     {
         var result = await _campaignService.GetAllAsync(request);
@@ -28,7 +27,6 @@ public class CampaignsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [AllowAnonymous]
     public async Task<ActionResult<CampaignDto>> GetById(int id)
     {
         var result = await _campaignService.GetByIdAsync(id);

@@ -18,12 +18,16 @@ public class EventService : IEventService
 
     public async Task<PagedResultDto<EventDto>> GetAllAsync(EventSearchDto request)
     {
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
         var query = _context.Events
             .Include(e => e.Category)
             .Include(e => e.City)
             .Include(e => e.Organization)
             .Include(e => e.Shifts)
             .Include(e => e.EventRegistrations)
+            .Where(e => !e.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.Query))
@@ -63,8 +67,8 @@ public class EventService : IEventService
             : query.OrderByDescending(e => e.IsFeatured).ThenBy(e => e.StartDate);
 
         var entities = await orderedQuery
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         var items = entities.Select(MapEvent).ToList();
@@ -73,8 +77,8 @@ public class EventService : IEventService
         {
             Items = items,
             TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize
+            Page = page,
+            PageSize = pageSize
         };
     }
 
@@ -86,7 +90,7 @@ public class EventService : IEventService
             .Include(e => e.Organization)
             .Include(e => e.Shifts)
             .Include(e => e.EventRegistrations)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
 
         return entity == null ? null : MapEvent(entity);
     }
@@ -174,6 +178,7 @@ public class EventService : IEventService
         Status = e.Status.ToString(),
         IsFeatured = e.IsFeatured,
         CategoryName = e.Category.Name,
+        CityId = e.CityId,
         CityName = e.City != null ? e.City.Name : null,
         OrganizationId = e.OrganizationId,
         OrganizationName = e.Organization != null ? e.Organization.Name : null,

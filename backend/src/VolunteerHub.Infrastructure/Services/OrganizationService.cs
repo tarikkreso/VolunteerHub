@@ -17,9 +17,13 @@ public class OrganizationService : IOrganizationService
 
     public async Task<PagedResultDto<OrganizationDto>> GetAllAsync(SearchRequestDto request)
     {
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
         var query = _context.Organizations
             .Include(o => o.City)
             .Include(o => o.Events)
+            .Where(o => !o.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.Query))
@@ -28,8 +32,8 @@ public class OrganizationService : IOrganizationService
         var totalCount = await query.CountAsync();
         var entities = await query
             .OrderBy(o => o.Name)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         var items = entities.Select(Map).ToList();
@@ -38,8 +42,8 @@ public class OrganizationService : IOrganizationService
         {
             Items = items,
             TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize
+            Page = page,
+            PageSize = pageSize
         };
     }
 
@@ -48,7 +52,7 @@ public class OrganizationService : IOrganizationService
         var entity = await _context.Organizations
             .Include(o => o.City)
             .Include(o => o.Events)
-            .FirstOrDefaultAsync(o => o.Id == id);
+            .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted);
 
         return entity == null ? null : Map(entity);
     }

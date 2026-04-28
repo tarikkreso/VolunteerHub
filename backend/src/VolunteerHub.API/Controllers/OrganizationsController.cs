@@ -19,14 +19,12 @@ public class OrganizationsController : ControllerBase
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<PagedResultDto<OrganizationDto>>> GetAll([FromQuery] SearchRequestDto request)
     {
         return Ok(await _organizationService.GetAllAsync(request));
     }
 
     [HttpGet("{id}")]
-    [AllowAnonymous]
     public async Task<ActionResult<OrganizationDto>> GetById(int id)
     {
         var result = await _organizationService.GetByIdAsync(id);

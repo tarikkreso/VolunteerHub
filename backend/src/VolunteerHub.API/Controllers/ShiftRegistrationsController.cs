@@ -63,6 +63,24 @@ public class ShiftRegistrationsController : ControllerBase
         }
     }
 
+    [HttpPost("cancel/{registrationId}")]
+    public async Task<ActionResult<ShiftRegistrationDto>> Cancel(int registrationId, [FromBody] CancelDto? dto)
+    {
+        try
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Reason))
+                return BadRequest(new { message = "Razlog otkazivanja je obavezan." });
+
+            var userId = GetUserId();
+            var result = await _service.CancelAsync(registrationId, userId, dto.Reason);
+            return Ok(result);
+        }
+        catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpGet("by-shift/{shiftId}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<List<ShiftRegistrationDto>>> GetByShift(int shiftId)
@@ -72,18 +90,18 @@ public class ShiftRegistrationsController : ControllerBase
     }
 
     [HttpGet("my-shifts")]
-    public async Task<ActionResult<List<ShiftRegistrationDto>>> GetMyShifts()
+    public async Task<ActionResult<PagedResultDto<ShiftRegistrationDto>>> GetMyShifts([FromQuery] SearchRequestDto request)
     {
         var userId = GetUserId();
-        var result = await _service.GetByUserAsync(userId);
+        var result = await _service.GetByUserAsync(userId, request);
         return Ok(result);
     }
 
     [HttpGet("by-user/{userId}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
-    public async Task<ActionResult<List<ShiftRegistrationDto>>> GetByUser(int userId)
+    public async Task<ActionResult<PagedResultDto<ShiftRegistrationDto>>> GetByUser(int userId, [FromQuery] SearchRequestDto request)
     {
-        var result = await _service.GetByUserAsync(userId);
+        var result = await _service.GetByUserAsync(userId, request);
         return Ok(result);
     }
 
@@ -93,7 +111,7 @@ public class ShiftRegistrationsController : ControllerBase
     {
         try
         {
-            var result = await _service.ApproveAsync(id, dto.ApprovedHours, dto.AdminNotes);
+            var result = await _service.ApproveAsync(id, dto.ApprovedHours, dto.AdminNotes, GetUserId());
             return Ok(result);
         }
         catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
@@ -108,7 +126,7 @@ public class ShiftRegistrationsController : ControllerBase
     {
         try
         {
-            var result = await _service.RejectAsync(id, dto.AdminNotes);
+            var result = await _service.RejectAsync(id, dto.AdminNotes, GetUserId());
             return Ok(result);
         }
         catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
@@ -123,7 +141,7 @@ public class ShiftRegistrationsController : ControllerBase
     {
         try
         {
-            await _service.FinalApprovalAsync(shiftId);
+            await _service.FinalApprovalAsync(shiftId, GetUserId());
             return Ok(new { message = "Smjena je uspješno zaključana." });
         }
         catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
@@ -136,7 +154,7 @@ public class ShiftRegistrationsController : ControllerBase
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<List<ShiftRegistrationDto>>> ApproveAll(int shiftId, [FromBody] RejectDto? dto)
     {
-        var result = await _service.ApproveAllAsync(shiftId, dto?.AdminNotes);
+        var result = await _service.ApproveAllAsync(shiftId, dto?.AdminNotes, GetUserId());
         return Ok(result);
     }
 
@@ -155,4 +173,9 @@ public class ApproveDto
 public class RejectDto
 {
     public string? AdminNotes { get; set; }
+}
+
+public class CancelDto
+{
+    public string Reason { get; set; } = string.Empty;
 }

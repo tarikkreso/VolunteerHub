@@ -17,7 +17,6 @@ public class LeaderboardController : ControllerBase
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<List<LeaderboardEntryDto>>> GetLeaderboard([FromQuery] int top = 10)
     {
         var result = await _leaderboardService.GetTopAsync(top);
@@ -25,7 +24,6 @@ public class LeaderboardController : ControllerBase
     }
 
     [HttpGet("paged")]
-    [AllowAnonymous]
     public async Task<ActionResult<PagedResultDto<LeaderboardEntryDto>>> GetLeaderboardPaged(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {

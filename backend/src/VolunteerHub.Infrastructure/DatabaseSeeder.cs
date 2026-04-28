@@ -22,6 +22,7 @@ public static class DatabaseSeeder
         await SeedCampaignsAndDonationsAsync(context);
         await SeedBlogAsync(context);
         await SeedNotificationsAsync(context);
+        await ApplyVisualAssetsAsync(context);
     }
 
     private static async Task EnsureRolesAsync(RoleManager<IdentityRole<int>> roleManager)
@@ -46,17 +47,34 @@ public static class DatabaseSeeder
             await context.SaveChangesAsync();
         }
 
-        if (!context.Cities.Any())
+        var bosniaId = await context.Countries.Where(c => c.Code == "BA").Select(c => c.Id).FirstAsync();
+        var croatiaId = await context.Countries.Where(c => c.Code == "HR").Select(c => c.Id).FirstAsync();
+        var existingCities = await context.Cities.Select(c => c.Name).ToListAsync();
+        var existingCityNames = existingCities.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var defaultCities = new[]
         {
-            var bosniaId = await context.Countries.Where(c => c.Code == "BA").Select(c => c.Id).FirstAsync();
-            var croatiaId = await context.Countries.Where(c => c.Code == "HR").Select(c => c.Id).FirstAsync();
+            new City { Name = "Sarajevo", PostalCode = "71000", CountryId = bosniaId },
+            new City { Name = "Mostar", PostalCode = "88000", CountryId = bosniaId },
+            new City { Name = "Tuzla", PostalCode = "75000", CountryId = bosniaId },
+            new City { Name = "Zenica", PostalCode = "72000", CountryId = bosniaId },
+            new City { Name = "Banja Luka", PostalCode = "78000", CountryId = bosniaId },
+            new City { Name = "Bihac", PostalCode = "77000", CountryId = bosniaId },
+            new City { Name = "Travnik", PostalCode = "72270", CountryId = bosniaId },
+            new City { Name = "Doboj", PostalCode = "74000", CountryId = bosniaId },
+            new City { Name = "Bijeljina", PostalCode = "76300", CountryId = bosniaId },
+            new City { Name = "Trebinje", PostalCode = "89101", CountryId = bosniaId },
+            new City { Name = "Bugojno", PostalCode = "70230", CountryId = bosniaId },
+            new City { Name = "Gorazde", PostalCode = "73000", CountryId = bosniaId },
+            new City { Name = "Zagreb", PostalCode = "10000", CountryId = croatiaId }
+        };
 
-            await context.Cities.AddRangeAsync(
-                new City { Name = "Sarajevo", PostalCode = "71000", CountryId = bosniaId },
-                new City { Name = "Mostar", PostalCode = "88000", CountryId = bosniaId },
-                new City { Name = "Tuzla", PostalCode = "75000", CountryId = bosniaId },
-                new City { Name = "Zenica", PostalCode = "72000", CountryId = bosniaId },
-                new City { Name = "Zagreb", PostalCode = "10000", CountryId = croatiaId });
+        var missingCities = defaultCities
+            .Where(c => !existingCityNames.Contains(c.Name))
+            .ToList();
+
+        if (missingCities.Count > 0)
+        {
+            await context.Cities.AddRangeAsync(missingCities);
             await context.SaveChangesAsync();
         }
 
@@ -134,6 +152,7 @@ public static class DatabaseSeeder
                 LastName = seedUser.LastName,
                 Email = seedUser.Email,
                 Phone = seedUser.Phone,
+                ProfileImageUrl = GetUserAvatarUrl(seedUser.Username),
                 Role = seedUser.Role,
                 CityId = seedUser.CityId,
                 Bio = seedUser.Bio,
@@ -208,6 +227,7 @@ public static class DatabaseSeeder
                 Email = "info@cks.ba",
                 Phone = "+38733222111",
                 Website = "https://cks.ba",
+                LogoUrl = GetOrganizationLogoUrl("Crveni Križ Sarajevo"),
                 Address = "Maršala Tita 10",
                 CityId = cityIds["Sarajevo"],
                 OwnerUserId = adminId
@@ -219,6 +239,7 @@ public static class DatabaseSeeder
                 Email = "kontakt@ekoakcija.ba",
                 Phone = "+38736222111",
                 Website = "https://ekoakcija.ba",
+                LogoUrl = GetOrganizationLogoUrl("Eko Akcija Mostar"),
                 Address = "Trg mladih 1",
                 CityId = cityIds["Mostar"],
                 OwnerUserId = adminId
@@ -244,6 +265,7 @@ public static class DatabaseSeeder
                 Title = "Čišćenje rijeke Miljacke",
                 Description = "Godišnja akcija čišćenja obala rijeke Miljacke uz koordinaciju lokalnih partnera.",
                 Requirements = "Fizički rad, timski rad, boravak na otvorenom",
+                ImageUrl = GetEventImageUrl("ciscenje-rijeke-miljacke"),
                 StartDate = DateTime.UtcNow.AddDays(7),
                 EndDate = DateTime.UtcNow.AddDays(7).AddHours(8),
                 Location = "Obala Kulina bana, Sarajevo",
@@ -262,6 +284,7 @@ public static class DatabaseSeeder
                 Title = "Besplatne instrukcije za učenike",
                 Description = "Mentorska podrška učenicima osnovnih škola kroz volontiranje nastavnika i studenata.",
                 Requirements = "Podučavanje, strpljenje, komunikacija",
+                ImageUrl = GetEventImageUrl("instrukcije-za-ucenike"),
                 StartDate = DateTime.UtcNow.AddDays(4),
                 EndDate = DateTime.UtcNow.AddDays(4).AddHours(4),
                 Location = "Centar za kulturu, Sarajevo",
@@ -279,6 +302,7 @@ public static class DatabaseSeeder
                 Title = "Posjeta domu za starije",
                 Description = "Druženje, podrška i pomoć starijim osobama kroz vikend posjete.",
                 Requirements = "Empatija, komunikacija, odgovornost",
+                ImageUrl = GetEventImageUrl("posjeta-domu-za-starije"),
                 StartDate = DateTime.UtcNow.AddDays(10),
                 EndDate = DateTime.UtcNow.AddDays(10).AddHours(5),
                 Location = "Dom za starije Novi Život",
@@ -296,6 +320,7 @@ public static class DatabaseSeeder
                 Title = "Proljetno čišćenje grada",
                 Description = "Završena akcija za potrebe historije i izvještaja.",
                 Requirements = "Fizički rad, timski rad",
+                ImageUrl = GetEventImageUrl("proljetno-ciscenje-grada"),
                 StartDate = DateTime.UtcNow.AddDays(-14),
                 EndDate = DateTime.UtcNow.AddDays(-14).AddHours(6),
                 Location = "Centar grada, Sarajevo",
@@ -405,6 +430,7 @@ public static class DatabaseSeeder
             {
                 Title = "Pomoć za poplavljena područja",
                 Description = "Prikupljanje sredstava za porodice pogođene poplavama.",
+                ImageUrl = GetCampaignImageUrl("pomoc-za-poplavljena-podrucja"),
                 GoalAmount = 10000,
                 CurrentAmount = 2500,
                 StartDate = DateTime.UtcNow.AddDays(-7),
@@ -418,6 +444,7 @@ public static class DatabaseSeeder
             {
                 Title = "Školski pribor za djecu",
                 Description = "Podrška kupovini školskog pribora za djecu iz socijalno osjetljivih porodica.",
+                ImageUrl = GetCampaignImageUrl("skolski-pribor-za-djecu"),
                 GoalAmount = 5000,
                 CurrentAmount = 1200,
                 StartDate = DateTime.UtcNow.AddDays(-3),
@@ -430,6 +457,7 @@ public static class DatabaseSeeder
             {
                 Title = "Azil za životinje Sarajevo",
                 Description = "Hrana, veterinarski tretmani i podrška azilu.",
+                ImageUrl = GetCampaignImageUrl("azil-za-zivotinje-sarajevo"),
                 GoalAmount = 3000,
                 CurrentAmount = 850,
                 StartDate = DateTime.UtcNow.AddDays(-2),
@@ -491,6 +519,7 @@ public static class DatabaseSeeder
                 Title = "Dobrodošli na VolunteerHub",
                 Content = "VolunteerHub povezuje volontere sa organizacijama kroz događaje, smjene, blog i donacije.",
                 Summary = "Upoznajte platformu i njene glavne mogućnosti.",
+                ImageUrl = GetBlogImageUrl("dobrodosli-na-volunteerhub"),
                 Tags = "uvod,volontiranje,zajednica",
                 IsPublished = true,
                 PublishedAt = DateTime.UtcNow.AddDays(-10),
@@ -504,6 +533,7 @@ public static class DatabaseSeeder
                 Title = "Kako se pripremiti za volontersku akciju",
                 Content = "Prije svake akcije provjerite detalje događaja, potrebne vještine i lokaciju, te dođite na vrijeme.",
                 Summary = "Praktični savjeti za nove volontere.",
+                ImageUrl = GetBlogImageUrl("priprema-za-volontersku-akciju"),
                 Tags = "savjeti,volonteri,priprema",
                 IsPublished = true,
                 PublishedAt = DateTime.UtcNow.AddDays(-4),
@@ -517,6 +547,7 @@ public static class DatabaseSeeder
                 Title = "Priča volonterke Lejle",
                 Content = "Lejlino iskustvo pokazuje kako se volontiranjem grade vještine i dugoročne veze u zajednici.",
                 Summary = "Iskustvo iz zajednice i motivacija za nove članove.",
+                ImageUrl = GetBlogImageUrl("prica-volonterke-lejle"),
                 Tags = "priče,iskustva,zajednica",
                 IsPublished = false,
                 ScheduledPublishAt = DateTime.UtcNow.AddDays(2),
@@ -588,6 +619,111 @@ public static class DatabaseSeeder
         }
 
         await context.SaveChangesAsync();
+    }
+
+    private static async Task ApplyVisualAssetsAsync(ApplicationDbContext context)
+    {
+        await ApplyUserImagesAsync(context);
+        await ApplyOrganizationImagesAsync(context);
+        await ApplyEventImagesAsync(context);
+        await ApplyCampaignImagesAsync(context);
+        await ApplyBlogImagesAsync(context);
+    }
+
+    private static async Task ApplyUserImagesAsync(ApplicationDbContext context)
+    {
+        var users = await context.Volunteers.ToListAsync();
+        foreach (var user in users)
+        {
+            if (!string.IsNullOrWhiteSpace(user.ProfileImageUrl))
+                continue;
+
+            user.ProfileImageUrl = GetUserAvatarUrl(user.Email ?? $"{user.FirstName}-{user.LastName}-{user.Id}");
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task ApplyOrganizationImagesAsync(ApplicationDbContext context)
+    {
+        var organizations = await context.Organizations.ToListAsync();
+        foreach (var org in organizations)
+        {
+            if (!string.IsNullOrWhiteSpace(org.LogoUrl))
+                continue;
+
+            org.LogoUrl = GetOrganizationLogoUrl(org.Name);
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task ApplyEventImagesAsync(ApplicationDbContext context)
+    {
+        var events = await context.Events.ToListAsync();
+        foreach (var evt in events)
+        {
+            if (!string.IsNullOrWhiteSpace(evt.ImageUrl))
+                continue;
+
+            evt.ImageUrl = GetEventImageUrl(evt.Title);
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task ApplyCampaignImagesAsync(ApplicationDbContext context)
+    {
+        var campaigns = await context.Campaigns.ToListAsync();
+        foreach (var campaign in campaigns)
+        {
+            if (!string.IsNullOrWhiteSpace(campaign.ImageUrl))
+                continue;
+
+            campaign.ImageUrl = GetCampaignImageUrl(campaign.Title);
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task ApplyBlogImagesAsync(ApplicationDbContext context)
+    {
+        var posts = await context.BlogPosts.ToListAsync();
+        foreach (var post in posts)
+        {
+            if (!string.IsNullOrWhiteSpace(post.ImageUrl))
+                continue;
+
+            post.ImageUrl = GetBlogImageUrl(post.Title);
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static string GetUserAvatarUrl(string seed)
+    {
+        return $"https://i.pravatar.cc/300?u={Uri.EscapeDataString(seed)}";
+    }
+
+    private static string GetOrganizationLogoUrl(string seed)
+    {
+        var text = Uri.EscapeDataString(seed.Length > 18 ? seed[..18] : seed);
+        return $"https://placehold.co/400x400/1f2937/ffffff?text={text}";
+    }
+
+    private static string GetEventImageUrl(string seed)
+    {
+        return $"https://picsum.photos/seed/{Uri.EscapeDataString(seed)}/1200/800";
+    }
+
+    private static string GetCampaignImageUrl(string seed)
+    {
+        return $"https://picsum.photos/seed/campaign-{Uri.EscapeDataString(seed)}/1200/800";
+    }
+
+    private static string GetBlogImageUrl(string seed)
+    {
+        return $"https://picsum.photos/seed/blog-{Uri.EscapeDataString(seed)}/1200/800";
     }
 
     private sealed record SeedUser(

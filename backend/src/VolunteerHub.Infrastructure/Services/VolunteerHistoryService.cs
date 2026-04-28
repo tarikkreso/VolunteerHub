@@ -22,6 +22,7 @@ public class VolunteerHistoryService : IVolunteerHistoryService
             .Include(h => h.Shift)
             .Where(h => h.UserId == userId)
             .OrderByDescending(h => h.OccurredAt)
+            .Take(100)
             .Select(h => new VolunteerHistoryDto
             {
                 Id = h.Id,

@@ -17,10 +17,14 @@ public class BlogPostService : IBlogPostService
 
     public async Task<PagedResultDto<BlogPostDto>> GetAllAsync(SearchRequestDto request, bool publishedOnly = true)
     {
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
         var query = _context.BlogPosts
             .Include(b => b.Author)
             .Include(b => b.BlogCategory)
             .Include(b => b.Organization)
+            .Where(b => !b.IsDeleted)
             .AsQueryable();
 
         if (publishedOnly)
@@ -37,8 +41,8 @@ public class BlogPostService : IBlogPostService
         var totalCount = await query.CountAsync();
         var entities = await query
             .OrderByDescending(b => b.PublishedAt ?? b.ScheduledPublishAt ?? b.CreatedAt)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         var items = entities.Select(MapBlogPost).ToList();
@@ -47,8 +51,8 @@ public class BlogPostService : IBlogPostService
         {
             Items = items,
             TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize
+            Page = page,
+            PageSize = pageSize
         };
     }
 
@@ -58,7 +62,7 @@ public class BlogPostService : IBlogPostService
             .Include(b => b.Author)
             .Include(b => b.BlogCategory)
             .Include(b => b.Organization)
-            .FirstOrDefaultAsync(b => b.Id == id);
+            .FirstOrDefaultAsync(b => b.Id == id && !b.IsDeleted);
 
         if (post == null)
             return null;

@@ -41,5 +41,9 @@ public enum NotificationType
     ShiftRegistration = 3,
     NewEvent = 4,
     DonationReceived = 5,
-    General = 6
+    General = 6,
+    EventRegistration = 7,
+    EventRegistrationCancelled = 8,
+    ShiftCheckIn = 9,
+    ShiftCheckOut = 10
 }

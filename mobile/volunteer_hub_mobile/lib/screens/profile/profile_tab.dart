@@ -1,8 +1,9 @@
-import 'package:dio/dio.dart';
+﻿import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../shifts/shift_detail_screen.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -58,7 +59,10 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       _mySkills = futures[1].data is List ? futures[1].data : [];
       _allSkills = futures[2].data is List ? futures[2].data : [];
       _stats = futures[3].data is Map ? futures[3].data as Map<String, dynamic> : {};
-      _myShifts = futures[4].data is List ? futures[4].data : [];
+      final shiftsData = futures[4].data;
+      _myShifts = shiftsData is Map
+          ? (shiftsData['items'] as List? ?? [])
+          : (shiftsData is List ? shiftsData : []);
     } catch (e) {
       debugPrint('Profile load error: $e');
     }
@@ -129,9 +133,9 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
           child: Row(children: [
             _miniStatCard('${(_stats['totalHours'] ?? 0).toStringAsFixed(1)}h', 'Sati', Colors.blue),
             const SizedBox(width: 8),
-            _miniStatCard('${_stats['totalEvents'] ?? 0}', 'Događaji', Colors.green),
+            _miniStatCard('${_stats['totalEvents'] ?? 0}', 'Dogadaji', Colors.green),
             const SizedBox(width: 8),
-            _miniStatCard('${_stats['upcomingShifts'] ?? 0}', 'Nadolazeće', Colors.orange),
+            _miniStatCard('${_stats['upcomingShifts'] ?? 0}', 'Nadolazece', Colors.orange),
             const SizedBox(width: 8),
             _miniStatCard('#${_stats['rank'] ?? '-'}', 'Rang', Colors.amber.shade700),
           ]),
@@ -176,7 +180,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
     );
   }
 
-  // ─── PROFILE TAB ───
+  // --- PROFILE TAB ---
   Widget _buildProfileTab(AuthProvider auth, Map<String, dynamic>? user) {
     return RefreshIndicator(
       onRefresh: _load,
@@ -225,7 +229,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
                 child: Row(children: [
                   Icon(Icons.info_outline, color: Colors.blue),
                   SizedBox(width: 12),
-                  Expanded(child: Text('Dodajte vještine za bolje preporuke događaja!')),
+                  Expanded(child: Text('Dodajte vještine za bolje preporuke dogadaja!')),
                 ]),
               ),
             )
@@ -236,7 +240,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
               children: _mySkills.map((s) => Chip(
                     label: Text(s['skillName'] ?? s['name'] ?? ''),
                     deleteIcon: const Icon(Icons.close, size: 16),
-                    onDeleted: () => _removeSkill(s['id']),
+                    onDeleted: () => _removeSkill(s['skillId']),
                   )).toList(),
             ),
           const SizedBox(height: 24),
@@ -272,7 +276,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
     );
   }
 
-  // ─── MY SHIFTS TAB ───
+  // --- MY SHIFTS TAB ---
   Widget _buildShiftsTab() {
     if (_myShifts.isEmpty) {
       return Center(
@@ -304,17 +308,17 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
         children: [
           // Summary row
           Row(children: [
-            _miniStatCard('${completedHours.toStringAsFixed(1)}h', 'Odrađeno', Colors.blue),
+            _miniStatCard('${completedHours.toStringAsFixed(1)}h', 'Odradeno', Colors.blue),
             const SizedBox(width: 8),
             _miniStatCard('$completedCount', 'Završene', Colors.green),
             const SizedBox(width: 8),
-            _miniStatCard('${pending.length}', 'Nadolazeće', Colors.orange),
+            _miniStatCard('${pending.length}', 'Nadolazece', Colors.orange),
             const SizedBox(width: 8),
             _miniStatCard('${completed.where((s) => s['status'] == 'Rejected').length}', 'Odbijene', Colors.red),
           ]),
           const SizedBox(height: 16),
           if (pending.isNotEmpty) ...[
-            Text('Aktivne/Nadolazeće (${pending.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Text('Aktivne/Nadolazece (${pending.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 8),
             ...pending.map((s) => _shiftHistoryCard(s)),
             const SizedBox(height: 16),
@@ -333,42 +337,49 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
     final status = s['status'] ?? '';
     final hours = s['hoursWorked'] as num?;
     final isSuspicious = s['isSuspicious'] == true;
+    final shiftId = _readInt(s['shiftId']);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 18,
-          backgroundColor: _statusColor(status).withValues(alpha: 0.15),
-          child: Icon(_statusIcon(status), color: _statusColor(status), size: 18),
-        ),
-        title: Text(s['eventTitle'] ?? s['shiftName'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-        subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (s['shiftName'] != null) Text(s['shiftName'], style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-          Text(_fmtDT(s['shiftStartTime']), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-        ]),
-        trailing: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          if (hours != null) Text('${hours.toStringAsFixed(1)}h', style: const TextStyle(fontWeight: FontWeight.bold)),
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: _statusColor(status).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(_statusLabel(status), style: TextStyle(fontSize: 10, color: _statusColor(status), fontWeight: FontWeight.w600)),
-            ),
-            if (isSuspicious) ...[
-              const SizedBox(width: 4),
-              const Icon(Icons.warning_amber, size: 14, color: Colors.orange),
-            ],
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: shiftId == null ? null : () => _openShiftDetail(Map<String, dynamic>.from(s as Map)),
+        child: ListTile(
+          leading: CircleAvatar(
+            radius: 18,
+            backgroundColor: _statusColor(status).withValues(alpha: 0.15),
+            child: Icon(_statusIcon(status), color: _statusColor(status), size: 18),
+          ),
+          title: Text(s['eventTitle'] ?? s['shiftName'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (s['shiftName'] != null) Text(s['shiftName'], style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            Text(_fmtDT(s['shiftStartTime']), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           ]),
-        ]),
+          trailing: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            if (hours != null) Text('${hours.toStringAsFixed(1)}h', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _statusColor(status).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(_statusLabel(status), style: TextStyle(fontSize: 10, color: _statusColor(status), fontWeight: FontWeight.w600)),
+              ),
+              if (isSuspicious) ...[
+                const SizedBox(width: 4),
+                const Icon(Icons.warning_amber, size: 14, color: Colors.orange),
+              ],
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade500),
+            ]),
+          ]),
+        ),
       ),
     );
   }
 
-  // ─── LEADERBOARD TAB ───
+  // --- LEADERBOARD TAB ---
   Widget _buildLeaderboardTab(Map<String, dynamic>? user) {
     if (_leaderboard.isEmpty) {
       return Center(
@@ -419,7 +430,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
                 '${e['userName'] ?? ''}${isMe ? ' (Ti)' : ''}',
                 style: TextStyle(fontWeight: isMe ? FontWeight.bold : FontWeight.normal),
               ),
-              subtitle: Text('${e['totalEvents'] ?? 0} događaja • ${e['points'] ?? 0} bodova', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              subtitle: Text('${e['totalEvents'] ?? 0} dogadaja • ${e['points'] ?? 0} bodova', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
               trailing: Text('${(e['totalHours'] ?? 0).toStringAsFixed(1)}h',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: i < 3 ? Colors.amber.shade700 : null)),
             ),
@@ -429,7 +440,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
     );
   }
 
-  // ─── HELPERS ───
+  // --- HELPERS ---
   Widget _buildAvatar(Map<String, dynamic>? user, {double radius = 24}) {
     final url = user?['profileImageUrl'] as String?;
     final initials = '${(user?['firstName'] ?? 'V')[0]}${(user?['lastName'] ?? '')[0]}'.toUpperCase();
@@ -469,7 +480,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
         'Completed' => 'Završeno',
         'Rejected' => 'Odbijeno',
         'Registered' => 'Prijavljeno',
-        'Pending' => 'Čeka se odobrenje',
+        'Pending' => 'Ceka se odobrenje',
         _ => status,
       };
 
@@ -480,6 +491,30 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return iso;
+    }
+  }
+
+  int? _readInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  Future<void> _openShiftDetail(Map<String, dynamic> shift) async {
+    final shiftId = _readInt(shift['shiftId']);
+    if (shiftId == null) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShiftDetailScreen(
+          shiftId: shiftId,
+          initialRegistration: shift,
+        ),
+      ),
+    );
+
+    if (mounted) {
+      await _load();
     }
   }
 
@@ -530,7 +565,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Unesite email';
                   final emailRe = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-                  if (!emailRe.hasMatch(v.trim())) return 'Nevažeći format emaila';
+                  if (!emailRe.hasMatch(v.trim())) return 'Nevažeci format emaila';
                   return null;
                 },
               ),
@@ -542,7 +577,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return null;
                   final phoneRe = RegExp(r'^\+?[0-9\s\-\(\)]{6,20}$');
-                  if (!phoneRe.hasMatch(v.trim())) return 'Nevažeći format broja telefona';
+                  if (!phoneRe.hasMatch(v.trim())) return 'Nevažeci format broja telefona';
                   return null;
                 },
               ),
@@ -640,7 +675,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
                                 } else if (e.response?.statusCode == 401) {
                                   msg = 'Trenutna lozinka je neispravna.';
                                 } else if (e.response?.statusCode == 409) {
-                                  msg = 'Email adresa je već u upotrebi.';
+                                  msg = 'Email adresa je vec u upotrebi.';
                                 }
                               }
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -675,7 +710,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
           Text('Dodaj vještinu', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           if (available.isEmpty)
-            const Padding(padding: EdgeInsets.all(16), child: Text('Sve vještine su već dodane!'))
+            const Padding(padding: EdgeInsets.all(16), child: Text('Sve vještine su vec dodane!'))
           else
             Wrap(
               spacing: 8,
@@ -715,3 +750,4 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
     }
   }
 }
+

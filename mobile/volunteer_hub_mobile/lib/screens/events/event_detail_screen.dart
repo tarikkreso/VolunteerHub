@@ -50,9 +50,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       final res = await _api.getShiftsByEvent(eventId);
       final shifts = res.data is List ? res.data as List : [];
       final regRes = await _api.getMyShifts();
-      final regs = regRes.data is List ? regRes.data as List : [];
+      final regsData = regRes.data;
+      final registrations = regsData is Map
+          ? (regsData['items'] as List? ?? [])
+          : (regsData is List ? regsData : []);
       final regIds = <int>{};
-      for (final r in regs) {
+      for (final r in registrations) {
         final status = r['status'] as String?;
         if (status == 'Rejected' || status == 'Cancelled') continue;
         final sid = r['shiftId'];

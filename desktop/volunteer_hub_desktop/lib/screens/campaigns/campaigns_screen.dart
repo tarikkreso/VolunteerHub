@@ -23,9 +23,14 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
     setState(() => _loading = true);
     try {
       final res = await _api.getCampaigns();
-        final items = res.data is List ? res.data : (res.data is Map ? (res.data['items'] ?? []) : []);
-        _campaigns = (items as List)
-          .map((e) => <String, dynamic>{...(e as Map), 'isActive': _toBool(e['isActive'])})
+      final items = res.data is List
+          ? res.data
+          : (res.data is Map ? (res.data['items'] ?? []) : []);
+      _campaigns = (items as List)
+          .map((e) => <String, dynamic>{
+                ...(e as Map),
+                'isActive': _toBool(e['isActive'])
+              })
           .toList();
     } catch (e) {
       debugPrint('Campaigns error: $e');
@@ -39,18 +44,25 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Text('Kampanje', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(width: 24),
-          _miniStat(Icons.campaign, 'Aktivne: ${_campaigns.where((c) => _toBool(c['isActive'])).length}', Colors.green),
-          const SizedBox(width: 12),
-          _miniStat(Icons.monetization_on, 'Prikupljeno: ${_totalRaised().toStringAsFixed(0)} KM', Colors.amber.shade800),
-          const Spacer(),
-          ElevatedButton.icon(
+        _pageHeader(
+          title: 'Kampanje',
+          subtitle: 'Pregled aktivnih inicijativa, ciljeva i donacija.',
+          action: ElevatedButton.icon(
             onPressed: () => _showCampaignDialog(null),
             icon: const Icon(Icons.add),
             label: const Text('Nova kampanja'),
           ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(spacing: 10, runSpacing: 10, children: [
+          _miniStat(
+              Icons.campaign,
+              'Aktivne: ${_campaigns.where((c) => _toBool(c['isActive'])).length}',
+              Colors.green),
+          _miniStat(
+              Icons.monetization_on,
+              'Prikupljeno: ${_totalRaised().toStringAsFixed(0)} KM',
+              Colors.amber.shade800),
         ]),
         const SizedBox(height: 16),
         Expanded(
@@ -62,28 +74,41 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                     final c = _campaigns[i];
                     final goal = (c['goalAmount'] ?? 1).toDouble();
                     final raised = (c['currentAmount'] ?? 0).toDouble();
-                    final pct = goal > 0 ? (raised / goal).clamp(0.0, 1.0) : 0.0;
+                    final pct =
+                        goal > 0 ? (raised / goal).clamp(0.0, 1.0) : 0.0;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ExpansionTile(
                         leading: Icon(
-                          _toBool(c['isActive']) ? Icons.campaign : Icons.campaign_outlined,
-                          color: _toBool(c['isActive']) ? Colors.green : Colors.grey,
+                          _toBool(c['isActive'])
+                              ? Icons.campaign
+                              : Icons.campaign_outlined,
+                          color: _toBool(c['isActive'])
+                              ? Colors.green
+                              : Colors.grey,
                         ),
                         title: Text(c['title'] ?? ''),
-                        subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const SizedBox(height: 4),
-                          LinearProgressIndicator(value: pct, minHeight: 8, borderRadius: BorderRadius.circular(4)),
-                          const SizedBox(height: 4),
-                          Text('${raised.toStringAsFixed(2)} / ${goal.toStringAsFixed(2)} KM (${(pct * 100).toStringAsFixed(0)}%)'),
-                        ]),
-                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                        subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              LinearProgressIndicator(
+                                  value: pct,
+                                  minHeight: 8,
+                                  borderRadius: BorderRadius.circular(4)),
+                              const SizedBox(height: 4),
+                              Text(
+                                  '${raised.toStringAsFixed(2)} / ${goal.toStringAsFixed(2)} KM (${(pct * 100).toStringAsFixed(0)}%)'),
+                            ]),
+                        trailing:
+                            Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(
                             icon: const Icon(Icons.edit, size: 20),
                             onPressed: () => _showCampaignDialog(c),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                            icon: const Icon(Icons.delete,
+                                size: 20, color: Colors.red),
                             onPressed: () => _delete(c['id']),
                           ),
                           IconButton(
@@ -95,13 +120,19 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(16),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(c['description'] ?? 'Nema opisa'),
-                              const SizedBox(height: 8),
-                              Text('Status: ${_toBool(c['isActive']) ? 'Aktivna' : 'Neaktivna'}'),
-                              if (c['startDate'] != null) Text('Početak: ${_fmtDate(c['startDate'])}'),
-                              if (c['endDate'] != null) Text('Kraj: ${_fmtDate(c['endDate'])}'),
-                            ]),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(c['description'] ?? 'Nema opisa'),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                      'Status: ${_toBool(c['isActive']) ? 'Aktivna' : 'Neaktivna'}'),
+                                  if (c['startDate'] != null)
+                                    Text(
+                                        'Početak: ${_fmtDate(c['startDate'])}'),
+                                  if (c['endDate'] != null)
+                                    Text('Kraj: ${_fmtDate(c['endDate'])}'),
+                                ]),
                           ),
                         ],
                       ),
@@ -117,7 +148,8 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
     final isEdit = existing != null;
     final title = TextEditingController(text: existing?['title'] ?? '');
     final desc = TextEditingController(text: existing?['description'] ?? '');
-    final goal = TextEditingController(text: '${existing?['goalAmount'] ?? ''}');
+    final goal =
+        TextEditingController(text: '${existing?['goalAmount'] ?? ''}');
     bool isActive = _toBool(existing?['isActive'], fallback: true);
     final formKey = GlobalKey<FormState>();
 
@@ -134,16 +166,23 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                 TextFormField(
                   controller: title,
                   decoration: const InputDecoration(labelText: 'Naziv *'),
-                  validator: (v) => v == null || v.isEmpty ? 'Naziv je obavezan' : null,
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Naziv je obavezan' : null,
                 ),
                 const SizedBox(height: 12),
-                TextFormField(controller: desc, decoration: const InputDecoration(labelText: 'Opis'), maxLines: 3),
+                TextFormField(
+                    controller: desc,
+                    decoration: const InputDecoration(labelText: 'Opis'),
+                    maxLines: 3),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: goal,
                   decoration: const InputDecoration(labelText: 'Cilj (KM) *'),
                   keyboardType: TextInputType.number,
-                  validator: (v) => v == null || v.isEmpty || (double.tryParse(v) ?? 0) <= 0 ? 'Unesite pozitivan iznos' : null,
+                  validator: (v) =>
+                      v == null || v.isEmpty || (double.tryParse(v) ?? 0) <= 0
+                          ? 'Unesite pozitivan iznos'
+                          : null,
                 ),
                 const SizedBox(height: 12),
                 SwitchListTile(
@@ -155,7 +194,9 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Odustani')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Odustani')),
             ElevatedButton(
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
@@ -164,14 +205,16 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                   'title': title.text.trim(),
                   'description': desc.text.trim(),
                   'goalAmount': double.parse(goal.text.trim()),
-                  'startDate': _normalizeCampaignDate(existing?['startDate'], now),
+                  'startDate':
+                      _normalizeCampaignDate(existing?['startDate'], now),
                   'endDate': _normalizeCampaignDate(existing?['endDate'], now),
                   'imageUrl': existing?['imageUrl'],
                   'isActive': isActive,
                 };
                 try {
                   if (isEdit) {
-                    await _api.updateCampaign((existing['id'] as num).toInt(), data);
+                    await _api.updateCampaign(
+                        (existing['id'] as num).toInt(), data);
                   } else {
                     await _api.createCampaign(data);
                   }
@@ -179,10 +222,14 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                   await _load();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(isEdit ? 'Kampanja uspješno ažurirana' : 'Kampanja uspješno kreirana')));
+                        content: Text(isEdit
+                            ? 'Kampanja uspješno ažurirana'
+                            : 'Kampanja uspješno kreirana')));
                   }
                 } catch (e) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_extractErrorMessage(e))));
+                  if (mounted)
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(_extractErrorMessage(e))));
                 }
               },
               child: Text(isEdit ? 'Spremi' : 'Kreiraj'),
@@ -198,9 +245,12 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Potvrda brisanja'),
-        content: const Text('Jeste li sigurni da želite obrisati ovu kampanju?'),
+        content:
+            const Text('Jeste li sigurni da želite obrisati ovu kampanju?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Odustani')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Odustani')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -213,9 +263,13 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
       try {
         await _api.deleteCampaign(id);
         _load();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kampanja obrisana')));
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Kampanja obrisana')));
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
       }
     }
   }
@@ -225,7 +279,9 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
     bool loadError = false;
     try {
       final res = await _api.getDonations(campaignId: campaign['id']);
-      donations = res.data is List ? res.data : (res.data is Map ? (res.data['items'] ?? []) : []);
+      donations = res.data is List
+          ? res.data
+          : (res.data is Map ? (res.data['items'] ?? []) : []);
     } catch (e) {
       debugPrint('Donations load error: $e');
       loadError = true;
@@ -247,33 +303,73 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                       itemBuilder: (c2, i) {
                         final d = donations[i];
                         return ListTile(
-                          leading: Icon(d['isAnonymous'] == true ? Icons.person_off : Icons.person),
+                          leading: Icon(d['isAnonymous'] == true
+                              ? Icons.person_off
+                              : Icons.person),
                           title: Text(d['isAnonymous'] == true
                               ? 'Anonimno'
                               : d['donorName'] ?? 'Anonimni donator'),
-                          subtitle: Text('${(d['amount'] as num?)?.toStringAsFixed(2) ?? '0'} KM • ${_fmtDate(d['createdAt'])}'),
+                          subtitle: Text(
+                              '${(d['amount'] as num?)?.toStringAsFixed(2) ?? '0'} KM • ${_fmtDate(d['createdAt'])}'),
                           trailing: d['message'] != null && d['message'] != ''
-                              ? Tooltip(message: d['message'], child: const Icon(Icons.chat_bubble_outline, size: 18))
+                              ? Tooltip(
+                                  message: d['message'],
+                                  child: const Icon(Icons.chat_bubble_outline,
+                                      size: 18))
                               : null,
                         );
                       },
                     ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Zatvori'))],
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Zatvori'))
+        ],
       ),
     );
   }
 
-  double _totalRaised() =>
-      _campaigns.fold(0.0, (sum, c) => sum + ((c['currentAmount'] ?? 0) as num).toDouble());
+  double _totalRaised() => _campaigns.fold(
+      0.0, (sum, c) => sum + ((c['currentAmount'] ?? 0) as num).toDouble());
+
+  Widget _pageHeader({
+    required String title,
+    required String subtitle,
+    required Widget action,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text(subtitle, style: TextStyle(color: Colors.grey.shade600)),
+            ],
+          ),
+        ),
+        action,
+      ],
+    );
+  }
 
   Widget _miniStat(IconData icon, String label, Color c) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: c.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: c.withValues(alpha: 0.18)),
+        ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 16, color: c),
           const SizedBox(width: 6),
-          Text(label, style: TextStyle(color: c, fontWeight: FontWeight.w600, fontSize: 12)),
+          Text(label,
+              style: TextStyle(
+                  color: c, fontWeight: FontWeight.w600, fontSize: 12)),
         ]),
       );
 
@@ -313,9 +409,11 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
           return message.toString();
         }
       }
-      if (statusCode == 401) return 'Sesija je istekla. Molimo prijavite se ponovo.';
+      if (statusCode == 401)
+        return 'Sesija je istekla. Molimo prijavite se ponovo.';
       if (statusCode == 403) return 'Nemate dozvolu za ovu akciju.';
-      if (statusCode != null) return 'Greška servera ($statusCode). Pokušajte ponovo.';
+      if (statusCode != null)
+        return 'Greška servera ($statusCode). Pokušajte ponovo.';
       if (error.type == DioExceptionType.connectionError ||
           error.type == DioExceptionType.connectionTimeout) {
         return 'Nije moguće povezati se sa serverom.';

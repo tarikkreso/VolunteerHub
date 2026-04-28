@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+﻿import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 
@@ -111,6 +111,7 @@ class ApiService {
   // ── Shifts ──
   Future<Response> getShiftsByEvent(int eventId) =>
       get(ApiConfig.shifts, queryParameters: {'eventId': eventId});
+  Future<Response> getShiftById(int id) => get('${ApiConfig.shifts}/$id');
 
   // ── Shift Registrations ──
   Future<Response> registerForShift(int shiftId) =>
@@ -120,7 +121,11 @@ class ApiService {
   Future<Response> checkOut(int shiftId) =>
       post('${ApiConfig.shiftRegistrations}/checkout/$shiftId');
   Future<Response> getMyShifts() =>
-      get('${ApiConfig.shiftRegistrations}/my-shifts');
+      get('${ApiConfig.shiftRegistrations}/my-shifts',
+          queryParameters: {'page': 1, 'pageSize': 100});
+  Future<Response> cancelShiftRegistration(int registrationId, String reason) =>
+      post('${ApiConfig.shiftRegistrations}/cancel/$registrationId',
+          data: {'reason': reason});
 
   // ── Campaigns ──
   Future<Response> getCampaigns({int page = 1, int pageSize = 3}) =>
@@ -129,8 +134,6 @@ class ApiService {
   Future<Response> getCampaign(int id) => get('${ApiConfig.campaigns}/$id');
 
   // ── Donations ──
-  Future<Response> createDonation(Map<String, dynamic> data) =>
-      post(ApiConfig.donations, data: data);
   Future<Response> getDonationsByCampaign(int campaignId) =>
       get('${ApiConfig.donations}/by-campaign/$campaignId');
   Future<Response> createPaymentIntent(Map<String, dynamic> data) =>

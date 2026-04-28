@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 
 class ApiService {
@@ -16,11 +15,6 @@ class ApiService {
       receiveTimeout: ApiConfig.receiveTimeout,
       headers: {'Content-Type': 'application/json'},
     ));
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      logPrint: (o) => debugPrint(o.toString()),
-    ));
   }
 
   void setToken(String? token) {
@@ -33,6 +27,14 @@ class ApiService {
   }
 
   String? get token => _token;
+
+  Future<Response> post(String path, {dynamic data}) =>
+      _dio.post(path, data: data);
+
+  Future<Response> put(String path, {dynamic data}) =>
+      _dio.put(path, data: data);
+
+  Future<Response> delete(String path) => _dio.delete(path);
 
   // ── Auth ──
   Future<Response> login(String email, String password) =>
@@ -174,6 +176,33 @@ class ApiService {
   Future<Response> getCities() => _dio.get(ApiConfig.cities);
   Future<Response> getCountries() => _dio.get(ApiConfig.countries);
   Future<Response> getSkills() => _dio.get(ApiConfig.skills);
+
+  Future<Response> createCategory(Map<String, dynamic> data) =>
+      _dio.post(ApiConfig.categories, data: data);
+
+  Future<Response> updateCategory(int id, Map<String, dynamic> data) =>
+      _dio.put('${ApiConfig.categories}/$id', data: data);
+
+  Future<Response> deleteCategory(int id) =>
+      _dio.delete('${ApiConfig.categories}/$id');
+
+  Future<Response> createCountry(Map<String, dynamic> data) =>
+      _dio.post(ApiConfig.countries, data: data);
+
+  Future<Response> updateCountry(int id, Map<String, dynamic> data) =>
+      _dio.put('${ApiConfig.countries}/$id', data: data);
+
+  Future<Response> deleteCountry(int id) =>
+      _dio.delete('${ApiConfig.countries}/$id');
+
+  Future<Response> createCity(Map<String, dynamic> data) =>
+      _dio.post(ApiConfig.cities, data: data);
+
+  Future<Response> updateCity(int id, Map<String, dynamic> data) =>
+      _dio.put('${ApiConfig.cities}/$id', data: data);
+
+  Future<Response> deleteCity(int id) =>
+      _dio.delete('${ApiConfig.cities}/$id');
 
   Future<Response> createSkill(Map<String, dynamic> data) =>
       _dio.post(ApiConfig.skills, data: data);

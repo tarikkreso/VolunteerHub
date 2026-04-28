@@ -18,7 +18,8 @@ public class UserSkillsController : ControllerBase
         _userSkillService = userSkillService;
     }
 
-    [HttpGet("{userId}")]
+    [HttpGet("{userId:int}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<List<UserSkillDto>>> GetByUser(int userId)
     {
         var result = await _userSkillService.GetByUserAsync(userId);

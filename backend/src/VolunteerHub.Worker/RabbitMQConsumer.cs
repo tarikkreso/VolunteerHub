@@ -4,20 +4,39 @@ using System.Text;
 using System.Text.Json;
 using MailKit.Net.Smtp;
 using MimeKit;
+using Microsoft.EntityFrameworkCore;
+using VolunteerHub.Application.DTOs;
+using VolunteerHub.Domain.Entities;
+using VolunteerHub.Domain.Enums;
+using VolunteerHub.Infrastructure.Data;
 
 namespace VolunteerHub.Worker;
 
 public class RabbitMQConsumer : BackgroundService
 {
+    private const int MaxRetryAttempts = 5;
+    private static readonly string[] QueueNames =
+    {
+        "email_notifications",
+        "user_notifications",
+        "shift_reminders",
+        "donation_notifications"
+    };
+
     private readonly ILogger<RabbitMQConsumer> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
     private IConnection? _connection;
     private IChannel? _channel;
 
-    public RabbitMQConsumer(ILogger<RabbitMQConsumer> logger, IConfiguration configuration)
+    public RabbitMQConsumer(
+        ILogger<RabbitMQConsumer> logger,
+        IConfiguration configuration,
+        IDbContextFactory<ApplicationDbContext> dbContextFactory)
     {
         _logger = logger;
         _configuration = configuration;
+        _dbContextFactory = dbContextFactory;
     }
 
     public override async Task StartAsync(CancellationToken cancellationToken)
@@ -34,34 +53,21 @@ public class RabbitMQConsumer : BackgroundService
             {
                 HostName = _configuration["RabbitMQ:Host"] ?? "localhost",
                 Port = int.Parse(_configuration["RabbitMQ:Port"] ?? "5672"),
-                UserName = _configuration["RabbitMQ:Username"] ?? "guest",
-                Password = _configuration["RabbitMQ:Password"] ?? "guest"
+                UserName = GetRequiredConfiguration("RabbitMQ:Username"),
+                Password = GetRequiredConfiguration("RabbitMQ:Password"),
+                AutomaticRecoveryEnabled = true,
+                NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
             };
 
             _connection = await factory.CreateConnectionAsync();
             _channel = await _connection.CreateChannelAsync();
 
-            // Declare queues
-            await _channel.QueueDeclareAsync(
-                queue: "email_notifications",
-                durable: true,
-                exclusive: false,
-                autoDelete: false,
-                arguments: null);
+            foreach (var queue in QueueNames)
+            {
+                await DeclareQueueWithDeadLetterAsync(queue);
+            }
 
-            await _channel.QueueDeclareAsync(
-                queue: "shift_reminders",
-                durable: true,
-                exclusive: false,
-                autoDelete: false,
-                arguments: null);
-
-            await _channel.QueueDeclareAsync(
-                queue: "donation_notifications",
-                durable: true,
-                exclusive: false,
-                autoDelete: false,
-                arguments: null);
+            await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: 10, global: false);
 
             _logger.LogInformation("RabbitMQ connection established successfully");
         }
@@ -87,6 +93,7 @@ public class RabbitMQConsumer : BackgroundService
 
         // Set up consumers for each queue
         await SetupEmailConsumer(stoppingToken);
+        await SetupUserNotificationConsumer(stoppingToken);
         await SetupShiftReminderConsumer(stoppingToken);
         await SetupDonationConsumer(stoppingToken);
 
@@ -112,6 +119,9 @@ public class RabbitMQConsumer : BackgroundService
                 var message = Encoding.UTF8.GetString(body);
                 var emailMessage = JsonSerializer.Deserialize<EmailMessage>(message);
 
+                if (emailMessage == null)
+                    throw new InvalidOperationException("Email message payload is invalid.");
+
                 if (emailMessage != null)
                 {
                     _logger.LogInformation("Processing email to: {Email}, Subject: {Subject}", 
@@ -126,7 +136,7 @@ public class RabbitMQConsumer : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing email message");
-                await _channel.BasicNackAsync(ea.DeliveryTag, false, true);
+                await RetryOrDeadLetterAsync(ea, "email_notifications", ex, stoppingToken);
             }
         };
 
@@ -146,6 +156,9 @@ public class RabbitMQConsumer : BackgroundService
                 var message = Encoding.UTF8.GetString(body);
                 var reminder = JsonSerializer.Deserialize<ShiftReminderMessage>(message);
 
+                if (reminder == null)
+                    throw new InvalidOperationException("Shift reminder payload is invalid.");
+
                 if (reminder != null)
                 {
                     _logger.LogInformation("Processing shift reminder for user: {UserId}, shift: {ShiftId}", 
@@ -160,11 +173,63 @@ public class RabbitMQConsumer : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing shift reminder");
-                await _channel.BasicNackAsync(ea.DeliveryTag, false, true);
+                await RetryOrDeadLetterAsync(ea, "shift_reminders", ex, stoppingToken);
             }
         };
 
         await _channel.BasicConsumeAsync("shift_reminders", false, consumer);
+    }
+
+    private async Task SetupUserNotificationConsumer(CancellationToken stoppingToken)
+    {
+        if (_channel == null) return;
+
+        var consumer = new AsyncEventingBasicConsumer(_channel);
+        consumer.ReceivedAsync += async (model, ea) =>
+        {
+            try
+            {
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+                var notification = JsonSerializer.Deserialize<UserNotificationMessage>(message);
+
+                if (notification == null)
+                    throw new InvalidOperationException("User notification payload is invalid.");
+
+                if (notification != null)
+                {
+                    _logger.LogInformation(
+                        "Processing user notification for user {UserId}: {Title}",
+                        notification.UserId,
+                        notification.Title);
+
+                    if (notification.PersistInAppNotification && notification.UserId > 0)
+                    {
+                        await SaveNotificationAsync(notification, stoppingToken);
+                    }
+
+                    if (notification.SendEmail && !string.IsNullOrWhiteSpace(notification.Email))
+                    {
+                        await SendEmailAsync(new EmailMessage
+                        {
+                            To = notification.Email,
+                            Subject = notification.EmailSubject ?? notification.Title,
+                            Body = notification.EmailBody ?? $"<h2>{notification.Title}</h2><p>{notification.Message}</p>",
+                            IsHtml = notification.IsEmailHtml
+                        });
+                    }
+
+                    await _channel.BasicAckAsync(ea.DeliveryTag, false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing user notification");
+                await RetryOrDeadLetterAsync(ea, "user_notifications", ex, stoppingToken);
+            }
+        };
+
+        await _channel.BasicConsumeAsync("user_notifications", false, consumer);
     }
 
     private async Task SetupDonationConsumer(CancellationToken stoppingToken)
@@ -180,6 +245,9 @@ public class RabbitMQConsumer : BackgroundService
                 var message = Encoding.UTF8.GetString(body);
                 var donation = JsonSerializer.Deserialize<DonationNotificationMessage>(message);
 
+                if (donation == null)
+                    throw new InvalidOperationException("Donation notification payload is invalid.");
+
                 if (donation != null)
                 {
                     _logger.LogInformation("Processing donation notification for campaign: {CampaignId}", 
@@ -194,11 +262,116 @@ public class RabbitMQConsumer : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing donation notification");
-                await _channel.BasicNackAsync(ea.DeliveryTag, false, true);
+                await RetryOrDeadLetterAsync(ea, "donation_notifications", ex, stoppingToken);
             }
         };
 
         await _channel.BasicConsumeAsync("donation_notifications", false, consumer);
+    }
+
+    private async Task DeclareQueueWithDeadLetterAsync(string queue)
+    {
+        if (_channel == null) return;
+
+        await _channel.QueueDeclareAsync(
+            queue: $"{queue}.dlq",
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            arguments: null);
+
+        await _channel.QueueDeclareAsync(
+            queue: queue,
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            arguments: new Dictionary<string, object?>
+            {
+                ["x-dead-letter-exchange"] = string.Empty,
+                ["x-dead-letter-routing-key"] = $"{queue}.dlq"
+            });
+    }
+
+    private async Task RetryOrDeadLetterAsync(BasicDeliverEventArgs ea, string queue, Exception exception, CancellationToken stoppingToken)
+    {
+        if (_channel == null) return;
+
+        var retryCount = GetRetryCount(ea.BasicProperties.Headers);
+        if (retryCount >= MaxRetryAttempts)
+        {
+            var dlqProperties = new BasicProperties
+            {
+                Persistent = true,
+                Headers = new Dictionary<string, object?>
+                {
+                    ["x-retry-count"] = retryCount,
+                    ["x-error-message"] = exception.Message
+                }
+            };
+
+            await _channel.BasicPublishAsync(
+                exchange: string.Empty,
+                routingKey: $"{queue}.dlq",
+                mandatory: false,
+                basicProperties: dlqProperties,
+                body: ea.Body,
+                cancellationToken: stoppingToken);
+            await _channel.BasicAckAsync(ea.DeliveryTag, false, stoppingToken);
+            _logger.LogError("Message from queue {Queue} moved to DLQ after {RetryCount} retries", queue, retryCount);
+            return;
+        }
+
+        var nextRetryCount = retryCount + 1;
+        var delay = TimeSpan.FromSeconds(Math.Min(60, Math.Pow(2, nextRetryCount)));
+        _logger.LogWarning("Retrying message from queue {Queue}. Attempt {Retry}/{MaxRetry} after {DelaySeconds}s",
+            queue,
+            nextRetryCount,
+            MaxRetryAttempts,
+            delay.TotalSeconds);
+
+        await Task.Delay(delay, stoppingToken);
+
+        var retryProperties = new BasicProperties
+        {
+            Persistent = true,
+            Headers = new Dictionary<string, object?>
+            {
+                ["x-retry-count"] = nextRetryCount
+            }
+        };
+
+        await _channel.BasicPublishAsync(
+            exchange: string.Empty,
+            routingKey: queue,
+            mandatory: false,
+            basicProperties: retryProperties,
+            body: ea.Body,
+            cancellationToken: stoppingToken);
+        await _channel.BasicAckAsync(ea.DeliveryTag, false, stoppingToken);
+    }
+
+    private static int GetRetryCount(IDictionary<string, object?>? headers)
+    {
+        if (headers == null || !headers.TryGetValue("x-retry-count", out var value) || value == null)
+            return 0;
+
+        return value switch
+        {
+            int intValue => intValue,
+            long longValue => (int)longValue,
+            byte[] bytes when int.TryParse(Encoding.UTF8.GetString(bytes), out var parsed) => parsed,
+            string stringValue when int.TryParse(stringValue, out var parsed) => parsed,
+            _ => 0
+        };
+    }
+
+    private string GetRequiredConfiguration(string key)
+    {
+        var value = _configuration[key];
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidOperationException($"Missing required configuration value: {key}");
+
+        return value;
     }
 
     private async Task SendEmailAsync(EmailMessage email)
@@ -239,6 +412,7 @@ public class RabbitMQConsumer : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email to {To}", email.To);
+            throw;
         }
     }
 
@@ -266,6 +440,32 @@ public class RabbitMQConsumer : BackgroundService
                    (string.IsNullOrEmpty(donation.Message) ? "" : $"<p>Poruka: <em>{donation.Message}</em></p>"),
             IsHtml = true
         });
+    }
+
+    private async Task SaveNotificationAsync(UserNotificationMessage message, CancellationToken stoppingToken)
+    {
+        await using var db = await _dbContextFactory.CreateDbContextAsync(stoppingToken);
+
+        var type = Enum.TryParse<NotificationType>(message.Type, out var parsedType)
+            ? parsedType
+            : NotificationType.General;
+
+        db.Notifications.Add(new Notification
+        {
+            UserId = message.UserId,
+            Title = message.Title,
+            Message = message.Message,
+            Type = type,
+            ActionUrl = message.ActionUrl,
+            EventId = message.EventId,
+            ShiftId = message.ShiftId,
+            CampaignId = message.CampaignId,
+            IsRead = false,
+            ReadAt = null
+        });
+
+        await db.SaveChangesAsync(stoppingToken);
+        _logger.LogInformation("Stored in-app notification for user {UserId}: {Title}", message.UserId, message.Title);
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)

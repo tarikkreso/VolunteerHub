@@ -21,6 +21,7 @@ public class ReportService : IReportService
             .Include(sr => sr.User)
             .Include(sr => sr.Shift)
                 .ThenInclude(s => s.Event)
+            .Where(sr => sr.User.Role == UserRole.Volunteer)
             .AsQueryable();
 
         if (from.HasValue)
@@ -52,6 +53,7 @@ public class ReportService : IReportService
             .Include(sr => sr.User)
             .Include(sr => sr.Shift)
             .Where(sr => sr.Status == ShiftStatus.Approved || sr.Status == ShiftStatus.Completed)
+            .Where(sr => sr.User.Role == UserRole.Volunteer)
             .AsQueryable();
 
         if (from.HasValue)

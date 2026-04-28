@@ -280,7 +280,9 @@ public class AuthService : IAuthService
         ProfileImageUrl = user.ProfileImageUrl,
         Bio = user.Bio,
         Role = user.Role.ToString(),
+        CityId = user.CityId,
         CityName = user.City?.Name,
+        IsActive = user.IsActive,
         CreatedAt = user.CreatedAt
     };
 }

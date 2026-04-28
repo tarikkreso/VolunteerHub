@@ -98,12 +98,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text(
-                'Izvjestaji',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Izvjestaji',
+                      style:
+                          TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Analitika volontera, dogadjaja, sati i donacija.',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
               OutlinedButton.icon(
                 onPressed: _pickDateRange,
                 icon: const Icon(Icons.date_range),
@@ -149,10 +162,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
               const SizedBox(width: 12),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                ),
                 onPressed: _exportPdf,
                 icon: const Icon(Icons.picture_as_pdf),
                 label: const Text('Export PDF'),
@@ -481,22 +490,35 @@ class _ReportsScreenState extends State<ReportsScreen> {
       width: 220,
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.all(16),
+          child: Row(
             children: [
-              Icon(icon, color: color),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(label, style: const TextStyle(color: Colors.grey)),
+                  ],
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(label, style: const TextStyle(color: Colors.grey)),
             ],
           ),
         ),

@@ -20,6 +20,8 @@ public class UserSkillService : IUserSkillService
         return await _context.UserSkills
             .Include(us => us.Skill)
             .Where(us => us.UserId == userId)
+            .OrderBy(us => us.Skill.Name)
+            .Take(100)
             .Select(us => new UserSkillDto
             {
                 Id = us.Id,

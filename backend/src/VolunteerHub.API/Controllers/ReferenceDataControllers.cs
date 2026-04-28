@@ -1,48 +1,34 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using VolunteerHub.Application.DTOs;
-using VolunteerHub.Infrastructure.Data;
+using VolunteerHub.Application.Services.Interfaces;
 using VolunteerHub.Domain.Entities;
 
 namespace VolunteerHub.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class CategoriesController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IReferenceDataService _referenceData;
 
-    public CategoriesController(ApplicationDbContext context)
+    public CategoriesController(IReferenceDataService referenceData)
     {
-        _context = context;
+        _referenceData = referenceData;
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<List<EventCategoryDto>>> GetAll()
     {
-        var categories = await _context.EventCategories
-            .Select(c => new EventCategoryDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                Description = c.Description,
-                IconUrl = c.IconUrl,
-                Color = c.Color,
-                CreatedAt = c.CreatedAt
-            })
-            .ToListAsync();
-        return Ok(categories);
+        return Ok(await _referenceData.GetCategoriesAsync());
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<EventCategoryDto>> Create([FromBody] EventCategoryDto dto)
     {
-        var category = new EventCategory { Name = dto.Name, Description = dto.Description, IconUrl = dto.IconUrl, Color = dto.Color };
-        _context.EventCategories.Add(category);
-        await _context.SaveChangesAsync();
+        var category = await _referenceData.CreateCategoryAsync(dto);
         return CreatedAtAction(nameof(GetAll), new { id = category.Id }, category);
     }
 
@@ -50,200 +36,188 @@ public class CategoriesController : ControllerBase
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Update(int id, [FromBody] EventCategoryDto dto)
     {
-        var category = await _context.EventCategories.FindAsync(id);
-        if (category == null) return NotFound();
-        category.Name = dto.Name;
-        category.Description = dto.Description;
-        category.IconUrl = dto.IconUrl;
-        category.Color = dto.Color;
-        await _context.SaveChangesAsync();
-        return NoContent();
+        var success = await _referenceData.UpdateCategoryAsync(id, dto);
+        return success ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Delete(int id)
     {
-        var category = await _context.EventCategories.FindAsync(id);
-        if (category == null) return NotFound();
-        _context.EventCategories.Remove(category);
-        await _context.SaveChangesAsync();
-        return NoContent();
+        try
+        {
+            await _referenceData.DeleteCategoryAsync(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class CitiesController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IReferenceDataService _referenceData;
 
-    public CitiesController(ApplicationDbContext context)
+    public CitiesController(IReferenceDataService referenceData)
     {
-        _context = context;
+        _referenceData = referenceData;
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<List<CityDto>>> GetAll([FromQuery] int? countryId = null)
     {
-        var query = _context.Cities.Include(c => c.Country).AsQueryable();
-        if (countryId.HasValue)
-            query = query.Where(c => c.CountryId == countryId.Value);
-
-        var cities = await query
-            .Select(c => new CityDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                PostalCode = c.PostalCode,
-                CountryName = c.Country.Name,
-                CreatedAt = c.CreatedAt
-            })
-            .ToListAsync();
-        return Ok(cities);
+        return Ok(await _referenceData.GetCitiesAsync(countryId));
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<CityDto>> Create([FromBody] City city)
     {
-        _context.Cities.Add(city);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetAll), new { id = city.Id }, city);
+        var created = await _referenceData.CreateCityAsync(city);
+        return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Update(int id, [FromBody] City dto)
     {
-        var city = await _context.Cities.FindAsync(id);
-        if (city == null) return NotFound();
-        city.Name = dto.Name;
-        city.PostalCode = dto.PostalCode;
-        city.CountryId = dto.CountryId;
-        await _context.SaveChangesAsync();
-        return NoContent();
+        var success = await _referenceData.UpdateCityAsync(id, dto);
+        return success ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Delete(int id)
     {
-        var city = await _context.Cities.FindAsync(id);
-        if (city == null) return NotFound();
-        _context.Cities.Remove(city);
-        await _context.SaveChangesAsync();
-        return NoContent();
+        try
+        {
+            await _referenceData.DeleteCityAsync(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class CountriesController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IReferenceDataService _referenceData;
 
-    public CountriesController(ApplicationDbContext context)
+    public CountriesController(IReferenceDataService referenceData)
     {
-        _context = context;
+        _referenceData = referenceData;
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<List<CountryDto>>> GetAll()
     {
-        var countries = await _context.Countries
-            .Select(c => new CountryDto { Id = c.Id, Name = c.Name, Code = c.Code, CreatedAt = c.CreatedAt })
-            .ToListAsync();
-        return Ok(countries);
+        return Ok(await _referenceData.GetCountriesAsync());
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<CountryDto>> Create([FromBody] Country country)
     {
-        _context.Countries.Add(country);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetAll), new { id = country.Id }, country);
+        var created = await _referenceData.CreateCountryAsync(country);
+        return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Update(int id, [FromBody] Country dto)
     {
-        var country = await _context.Countries.FindAsync(id);
-        if (country == null) return NotFound();
-        country.Name = dto.Name;
-        country.Code = dto.Code;
-        await _context.SaveChangesAsync();
-        return NoContent();
+        var success = await _referenceData.UpdateCountryAsync(id, dto);
+        return success ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Delete(int id)
     {
-        var country = await _context.Countries.FindAsync(id);
-        if (country == null) return NotFound();
-        _context.Countries.Remove(country);
-        await _context.SaveChangesAsync();
-        return NoContent();
+        try
+        {
+            await _referenceData.DeleteCountryAsync(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class SkillsController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IReferenceDataService _referenceData;
 
-    public SkillsController(ApplicationDbContext context)
+    public SkillsController(IReferenceDataService referenceData)
     {
-        _context = context;
+        _referenceData = referenceData;
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<List<SkillDto>>> GetAll()
     {
-        var skills = await _context.Skills
-            .Select(s => new SkillDto { Id = s.Id, Name = s.Name, Description = s.Description, IconUrl = s.IconUrl, Color = s.Color, CreatedAt = s.CreatedAt })
-            .ToListAsync();
-        return Ok(skills);
+        return Ok(await _referenceData.GetSkillsAsync());
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<SkillDto>> Create([FromBody] Skill skill)
     {
-        _context.Skills.Add(skill);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetAll), new { id = skill.Id }, skill);
+        var created = await _referenceData.CreateSkillAsync(skill);
+        return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Update(int id, [FromBody] Skill dto)
     {
-        var skill = await _context.Skills.FindAsync(id);
-        if (skill == null) return NotFound();
-        skill.Name = dto.Name;
-        skill.Description = dto.Description;
-        skill.IconUrl = dto.IconUrl;
-        skill.Color = dto.Color;
-        await _context.SaveChangesAsync();
-        return NoContent();
+        var success = await _referenceData.UpdateSkillAsync(id, dto);
+        return success ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Delete(int id)
     {
-        var skill = await _context.Skills.FindAsync(id);
-        if (skill == null) return NotFound();
-        _context.Skills.Remove(skill);
-        await _context.SaveChangesAsync();
-        return NoContent();
+        try
+        {
+            await _referenceData.DeleteSkillAsync(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

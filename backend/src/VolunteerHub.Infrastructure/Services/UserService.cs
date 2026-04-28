@@ -1,22 +1,32 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using VolunteerHub.Application.DTOs;
 using VolunteerHub.Application.Services.Interfaces;
 using VolunteerHub.Infrastructure.Data;
+using VolunteerHub.Domain.Entities;
 
 namespace VolunteerHub.Infrastructure.Services;
 
 public class UserService : IUserService
 {
     private readonly ApplicationDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public UserService(ApplicationDbContext context)
+    public UserService(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
+        _userManager = userManager;
     }
 
     public async Task<PagedResultDto<UserDto>> GetAllAsync(SearchRequestDto request)
     {
-        var query = _context.Volunteers.Include(u => u.City).AsQueryable();
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
+        var query = _context.Volunteers
+            .Include(u => u.City)
+            .Where(u => !u.IsDeleted)
+            .AsQueryable();
 
         if (!string.IsNullOrEmpty(request.Query))
         {
@@ -30,8 +40,8 @@ public class UserService : IUserService
         var pagedUsers = await query
             .OrderBy(u => u.LastName)
             .ThenBy(u => u.FirstName)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         var userIds = pagedUsers.Select(u => u.Id).ToList();
@@ -52,7 +62,9 @@ public class UserService : IUserService
                 ProfileImageUrl = u.ProfileImageUrl,
                 Bio = u.Bio,
                 Role = u.Role.ToString(),
+                CityId = u.CityId,
                 CityName = u.City?.Name,
+                IsActive = u.IsActive,
                 CreatedAt = u.CreatedAt,
                 TotalHours = lb?.TotalHours ?? 0,
                 TotalEvents = lb?.TotalEvents ?? 0
@@ -63,8 +75,8 @@ public class UserService : IUserService
         {
             Items = items,
             TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize
+            Page = page,
+            PageSize = pageSize
         };
     }
 
@@ -72,7 +84,7 @@ public class UserService : IUserService
     {
         var user = await _context.Volunteers
             .Include(u => u.City)
-            .FirstOrDefaultAsync(u => u.Id == id);
+            .FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted);
 
         if (user == null) return null;
 
@@ -86,22 +98,68 @@ public class UserService : IUserService
             ProfileImageUrl = user.ProfileImageUrl,
             Bio = user.Bio,
             Role = user.Role.ToString(),
+            CityId = user.CityId,
             CityName = user.City?.Name,
+            IsActive = user.IsActive,
             CreatedAt = user.CreatedAt
         };
     }
 
     public async Task<bool> UpdateAsync(int id, UserUpdateDto dto)
     {
-        var user = await _context.Volunteers.FindAsync(id);
+        var user = await _context.Volunteers.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return false;
 
-        if (dto.FirstName != null) user.FirstName = dto.FirstName;
-        if (dto.LastName != null) user.LastName = dto.LastName;
-        if (dto.Phone != null) user.Phone = dto.Phone;
-        if (dto.ProfileImageUrl != null) user.ProfileImageUrl = dto.ProfileImageUrl;
-        if (dto.Bio != null) user.Bio = dto.Bio;
+        var identityUser = user.IdentityUserId.HasValue
+            ? await _userManager.FindByIdAsync(user.IdentityUserId.Value.ToString())
+            : null;
+
+        if (dto.FirstName != null) user.FirstName = dto.FirstName.Trim();
+        if (dto.LastName != null) user.LastName = dto.LastName.Trim();
+        if (dto.Phone != null) user.Phone = string.IsNullOrWhiteSpace(dto.Phone) ? null : dto.Phone.Trim();
+        if (dto.ProfileImageUrl != null) user.ProfileImageUrl = string.IsNullOrWhiteSpace(dto.ProfileImageUrl) ? null : dto.ProfileImageUrl.Trim();
+        if (dto.Bio != null) user.Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim();
         if (dto.CityId.HasValue) user.CityId = dto.CityId;
+        if (dto.IsActive.HasValue) user.IsActive = dto.IsActive.Value;
+
+        if (!string.IsNullOrWhiteSpace(dto.Email))
+        {
+            var normalizedEmail = dto.Email.Trim();
+            var emailTaken = await _context.Volunteers.AnyAsync(u => u.Email == normalizedEmail && u.Id != id);
+            var identityEmailTaken = await _userManager.FindByEmailAsync(normalizedEmail);
+            if (identityEmailTaken != null && (!user.IdentityUserId.HasValue || identityEmailTaken.Id != user.IdentityUserId.Value))
+            {
+                emailTaken = true;
+            }
+            if (emailTaken)
+            {
+                throw new InvalidOperationException("Email adresa je već u upotrebi.");
+            }
+
+            user.Email = normalizedEmail;
+
+            if (identityUser != null)
+            {
+                identityUser.Email = normalizedEmail;
+                identityUser.UserName = normalizedEmail;
+                identityUser.IsActive = user.IsActive;
+
+                var identityResult = await _userManager.UpdateAsync(identityUser);
+                if (!identityResult.Succeeded)
+                {
+                    throw new InvalidOperationException(string.Join(" ", identityResult.Errors.Select(e => e.Description)));
+                }
+            }
+        }
+        else if (identityUser != null)
+        {
+            identityUser.IsActive = user.IsActive;
+            var identityResult = await _userManager.UpdateAsync(identityUser);
+            if (!identityResult.Succeeded)
+            {
+                throw new InvalidOperationException(string.Join(" ", identityResult.Errors.Select(e => e.Description)));
+            }
+        }
 
         await _context.SaveChangesAsync();
         return true;

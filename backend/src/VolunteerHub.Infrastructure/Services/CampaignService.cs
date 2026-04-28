@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using VolunteerHub.Application.DTOs;
 using VolunteerHub.Application.Services.Interfaces;
 using VolunteerHub.Domain.Entities;
+using VolunteerHub.Domain.Enums;
 using VolunteerHub.Infrastructure.Data;
 
 namespace VolunteerHub.Infrastructure.Services;
@@ -20,17 +21,20 @@ public class CampaignService : ICampaignService
         var query = _context.Campaigns
             .Include(c => c.Donations)
             .Include(c => c.Organization)
+            .Where(c => !c.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.Query))
             query = query.Where(c => c.Title.Contains(request.Query) || c.Description.Contains(request.Query));
 
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
         var totalCount = await query.CountAsync();
         var entities = await query
             .OrderByDescending(c => c.IsFeatured)
             .ThenByDescending(c => c.CreatedAt)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         var items = entities.Select(MapCampaign).ToList();
@@ -39,8 +43,8 @@ public class CampaignService : ICampaignService
         {
             Items = items,
             TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize
+            Page = page,
+            PageSize = pageSize
         };
     }
 
@@ -49,13 +53,15 @@ public class CampaignService : ICampaignService
         var entity = await _context.Campaigns
             .Include(c => c.Donations)
             .Include(c => c.Organization)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
         return entity == null ? null : MapCampaign(entity);
     }
 
     public async Task<CampaignDto> CreateAsync(CampaignCreateDto dto, int userId)
     {
+        ValidateCampaignDates(dto);
+
         var campaign = new Campaign
         {
             Title = dto.Title,
@@ -78,6 +84,8 @@ public class CampaignService : ICampaignService
 
     public async Task<bool> UpdateAsync(int id, CampaignCreateDto dto)
     {
+        ValidateCampaignDates(dto);
+
         var campaign = await _context.Campaigns.FindAsync(id);
         if (campaign == null)
             return false;
@@ -119,8 +127,14 @@ public class CampaignService : ICampaignService
         EndDate = c.EndDate,
         IsActive = c.IsActive,
         IsFeatured = c.IsFeatured,
-        DonationCount = c.Donations.Count,
+        DonationCount = c.Donations.Count(d => d.Status == DonationStatus.Completed),
         OrganizationName = c.Organization != null ? c.Organization.Name : null,
         CreatedAt = c.CreatedAt
     };
+
+    private static void ValidateCampaignDates(CampaignCreateDto dto)
+    {
+        if (dto.EndDate <= dto.StartDate)
+            throw new InvalidOperationException("Zavrsni datum kampanje mora biti nakon pocetnog datuma.");
+    }
 }

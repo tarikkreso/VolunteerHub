@@ -22,7 +22,9 @@ class _BlogScreenState extends State<BlogScreen> {
     setState(() => _loading = true);
     try {
       final res = await _api.getBlogPostsAll();
-      _posts = res.data is List ? res.data : (res.data is Map ? (res.data['items'] ?? []) : []);
+      _posts = res.data is List
+          ? res.data
+          : (res.data is Map ? (res.data['items'] ?? []) : []);
     } catch (e) {
       debugPrint('Blog error: $e');
     }
@@ -35,18 +37,25 @@ class _BlogScreenState extends State<BlogScreen> {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Text('Blog objave', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(width: 24),
-          _miniStat(Icons.public, 'Objavljeno: ${_posts.where((p) => p['isPublished'] == true).length}', Colors.green),
-          const SizedBox(width: 12),
-          _miniStat(Icons.edit_note, 'Nacrt: ${_posts.where((p) => p['isPublished'] != true).length}', Colors.orange),
-          const Spacer(),
-          ElevatedButton.icon(
+        _pageHeader(
+          title: 'Blog objave',
+          subtitle: 'Upravljanje objavama, nacrtima i sadrzajem za zajednicu.',
+          action: ElevatedButton.icon(
             onPressed: () => _showPostDialog(null),
             icon: const Icon(Icons.add),
             label: const Text('Nova objava'),
           ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(spacing: 10, runSpacing: 10, children: [
+          _miniStat(
+              Icons.public,
+              'Objavljeno: ${_posts.where((p) => p['isPublished'] == true).length}',
+              Colors.green),
+          _miniStat(
+              Icons.edit_note,
+              'Nacrt: ${_posts.where((p) => p['isPublished'] != true).length}',
+              Colors.orange),
         ]),
         const SizedBox(height: 16),
         Expanded(
@@ -68,7 +77,8 @@ class _BlogScreenState extends State<BlogScreen> {
                         subtitle: Text(
                           '${published ? 'Objavljeno' : 'Nacrt'} • ${_fmtDate(p['publishedAt'] ?? p['createdAt'])} • ~${p['readingTime'] ?? '?'} min čitanja',
                         ),
-                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                        trailing:
+                            Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(
                             icon: const Icon(Icons.visibility, size: 20),
                             tooltip: 'Pregled',
@@ -80,7 +90,8 @@ class _BlogScreenState extends State<BlogScreen> {
                             onPressed: () => _showPostDialog(p),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                            icon: const Icon(Icons.delete,
+                                size: 20, color: Colors.red),
                             tooltip: 'Obriši',
                             onPressed: () => _delete(p['id']),
                           ),
@@ -117,30 +128,37 @@ class _BlogScreenState extends State<BlogScreen> {
                   TextFormField(
                     controller: title,
                     decoration: const InputDecoration(labelText: 'Naslov *'),
-                    validator: (v) => v == null || v.isEmpty ? 'Naslov je obavezan' : null,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Naslov je obavezan' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: content,
-                    decoration: const InputDecoration(labelText: 'Sadržaj *', alignLabelWithHint: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Sadržaj *', alignLabelWithHint: true),
                     maxLines: 8,
                     maxLength: 8000,
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Sadržaj je obavezan';
-                      if (v.trim().length < 50) return 'Sadržaj mora imati najmanje 50 znakova';
-                      if (v.trim().length > 8000) return 'Sadržaj može imati najviše 8000 znakova';
+                      if (v == null || v.trim().isEmpty)
+                        return 'Sadržaj je obavezan';
+                      if (v.trim().length < 50)
+                        return 'Sadržaj mora imati najmanje 50 znakova';
+                      if (v.trim().length > 8000)
+                        return 'Sadržaj može imati najviše 8000 znakova';
                       return null;
                     },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: imageUrl,
-                    decoration: const InputDecoration(labelText: 'URL slike (opcionalno)'),
+                    decoration: const InputDecoration(
+                        labelText: 'URL slike (opcionalno)'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: tags,
-                    decoration: const InputDecoration(labelText: 'Tagovi (razdvojeni zarezom)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Tagovi (razdvojeni zarezom)'),
                   ),
                   const SizedBox(height: 12),
                   SwitchListTile(
@@ -153,7 +171,9 @@ class _BlogScreenState extends State<BlogScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Odustani')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Odustani')),
             ElevatedButton(
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
@@ -174,10 +194,15 @@ class _BlogScreenState extends State<BlogScreen> {
                   await _load();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(isEdit ? 'Objava uspješno ažurirana' : 'Objava uspješno kreirana')));
+                        content: Text(isEdit
+                            ? 'Objava uspješno ažurirana'
+                            : 'Objava uspješno kreirana')));
                   }
                 } catch (e) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
+                  if (mounted)
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content:
+                            Text('Došlo je do greške. Pokušajte ponovo.')));
                 }
               },
               child: Text(isEdit ? 'Spremi' : 'Kreiraj'),
@@ -197,27 +222,38 @@ class _BlogScreenState extends State<BlogScreen> {
           width: 600,
           height: 400,
           child: SingleChildScrollView(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (post['imageUrl'] != null && post['imageUrl'] != '')
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Image.network(post['imageUrl'], height: 200, fit: BoxFit.cover,
+                  child: Image.network(post['imageUrl'],
+                      height: 200,
+                      fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => const SizedBox()),
                 ),
-              Text(post['content'] ?? '', style: const TextStyle(fontSize: 14, height: 1.6)),
+              Text(post['content'] ?? '',
+                  style: const TextStyle(fontSize: 14, height: 1.6)),
               const SizedBox(height: 16),
               if (post['tags'] != null && post['tags'] != '')
                 Wrap(
                   spacing: 8,
-                  children: (post['tags'] as String).split(',').map((t) => Chip(label: Text(t.trim()))).toList(),
+                  children: (post['tags'] as String)
+                      .split(',')
+                      .map((t) => Chip(label: Text(t.trim())))
+                      .toList(),
                 ),
               const SizedBox(height: 8),
-              Text('Objavljeno: ${_fmtDate(post['publishedAt'] ?? post['createdAt'])}',
+              Text(
+                  'Objavljeno: ${_fmtDate(post['publishedAt'] ?? post['createdAt'])}',
                   style: const TextStyle(color: Colors.grey)),
             ]),
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Zatvori'))],
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Zatvori'))
+        ],
       ),
     );
   }
@@ -229,7 +265,9 @@ class _BlogScreenState extends State<BlogScreen> {
         title: const Text('Potvrda brisanja'),
         content: const Text('Jeste li sigurni da želite obrisati ovu objavu?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Odustani')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Odustani')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -242,20 +280,55 @@ class _BlogScreenState extends State<BlogScreen> {
       try {
         await _api.deleteBlogPost(id);
         _load();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Objava obrisana')));
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Objava obrisana')));
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
       }
     }
   }
 
+  Widget _pageHeader({
+    required String title,
+    required String subtitle,
+    required Widget action,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text(subtitle, style: TextStyle(color: Colors.grey.shade600)),
+            ],
+          ),
+        ),
+        action,
+      ],
+    );
+  }
+
   Widget _miniStat(IconData icon, String label, Color c) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: c.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: c.withValues(alpha: 0.18)),
+        ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 16, color: c),
           const SizedBox(width: 6),
-          Text(label, style: TextStyle(color: c, fontWeight: FontWeight.w600, fontSize: 12)),
+          Text(label,
+              style: TextStyle(
+                  color: c, fontWeight: FontWeight.w600, fontSize: 12)),
         ]),
       );
 

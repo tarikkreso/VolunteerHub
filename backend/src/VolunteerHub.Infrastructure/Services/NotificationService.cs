@@ -35,9 +35,10 @@ public class NotificationService : INotificationService
             .ToListAsync();
     }
 
-    public async Task<bool> MarkAsReadAsync(int notificationId)
+    public async Task<bool> MarkAsReadAsync(int notificationId, int userId)
     {
-        var notification = await _context.Notifications.FindAsync(notificationId);
+        var notification = await _context.Notifications
+            .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId);
         if (notification == null) return false;
 
         notification.IsRead = true;

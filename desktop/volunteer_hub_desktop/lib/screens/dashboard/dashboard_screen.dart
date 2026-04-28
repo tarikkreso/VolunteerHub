@@ -51,10 +51,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   padding: const EdgeInsets.all(16),
                   child: const Row(
                     children: [
-                      Icon(Icons.volunteer_activism, color: Colors.white, size: 32),
+                      Icon(Icons.volunteer_activism,
+                          color: Colors.white, size: 32),
                       SizedBox(width: 12),
                       Text('VolunteerHub',
-                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -67,17 +71,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       final item = _navItems[index];
                       final sel = _selectedIndex == index;
                       return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          color: sel ? Theme.of(context).primaryColor.withOpacity(0.2) : Colors.transparent,
+                          color: sel
+                              ? Theme.of(context)
+                                  .primaryColor
+                                  .withValues(alpha: 0.2)
+                              : Colors.transparent,
                         ),
                         child: ListTile(
-                          leading: Icon(item.icon, color: sel ? Theme.of(context).primaryColor : Colors.white70),
+                          leading: Icon(item.icon,
+                              color: sel
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.white70),
                           title: Text(item.label,
                               style: TextStyle(
-                                  color: sel ? Theme.of(context).primaryColor : Colors.white70,
-                                  fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
+                                  color: sel
+                                      ? Theme.of(context).primaryColor
+                                      : Colors.white70,
+                                  fontWeight: sel
+                                      ? FontWeight.bold
+                                      : FontWeight.normal)),
                           onTap: () => setState(() => _selectedIndex = index),
                         ),
                       );
@@ -87,9 +103,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const Divider(color: Colors.white24, height: 1),
                 ListTile(
                   leading: const CircleAvatar(child: Icon(Icons.person)),
-                  title: Text('${user?['firstName'] ?? ''} ${user?['lastName'] ?? ''}',
+                  title: Text(
+                      '${user?['firstName'] ?? ''} ${user?['lastName'] ?? ''}',
                       style: const TextStyle(color: Colors.white)),
-                  subtitle: Text(user?['role'] ?? '', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                  subtitle: Text(user?['role'] ?? '',
+                      style:
+                          const TextStyle(color: Colors.white54, fontSize: 12)),
                   trailing: IconButton(
                     icon: const Icon(Icons.logout, color: Colors.white54),
                     tooltip: 'Odjavi se',
@@ -115,7 +134,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   child: Row(children: [
                     Text(_navItems[_selectedIndex].label,
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
                     const Spacer(),
                   ]),
                 ),
@@ -130,16 +150,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildContent() {
     switch (_selectedIndex) {
-      case 0: return _DashboardHome(api: _api, onNavigate: (i) => setState(() => _selectedIndex = i));
-      case 1: return const EventsScreen();
-      case 2: return const ShiftsScreen();
-      case 3: return const VolunteersScreen();
-      case 4: return const CampaignsScreen();
-      case 5: return const BlogScreen();
-      case 6: return const ReportsScreen();
-      case 7: return const SkillsScreen();
-      case 8: return const SettingsScreen();
-      default: return const SizedBox();
+      case 0:
+        return _DashboardHome(
+            api: _api, onNavigate: (i) => setState(() => _selectedIndex = i));
+      case 1:
+        return const EventsScreen();
+      case 2:
+        return const ShiftsScreen();
+      case 3:
+        return const VolunteersScreen();
+      case 4:
+        return const CampaignsScreen();
+      case 5:
+        return const BlogScreen();
+      case 6:
+        return const ReportsScreen();
+      case 7:
+        return const SkillsScreen();
+      case 8:
+        return const SettingsScreen();
+      default:
+        return const SizedBox();
     }
   }
 }
@@ -199,6 +230,16 @@ class _DashboardHomeState extends State<_DashboardHome> {
       padding: const EdgeInsets.all(24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Pregled sistema',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text('Kratak pregled aktivnosti, volontera i kljucnih akcija.',
+                  style: TextStyle(color: Colors.grey.shade600)),
+            ]),
+          ),
           OutlinedButton.icon(
             onPressed: _pickDateRange,
             icon: const Icon(Icons.date_range),
@@ -223,35 +264,61 @@ class _DashboardHomeState extends State<_DashboardHome> {
         ]),
         const SizedBox(height: 16),
         Row(children: [
-          _stat('Događaji', '${_stats?['totalEvents'] ?? 0}', Icons.event, Colors.blue),
+          _stat('Događaji', '${_stats?['totalEvents'] ?? 0}', Icons.event,
+              Colors.blue),
           const SizedBox(width: 16),
-          _stat('Smjene', '${_stats?['totalShifts'] ?? 0}', Icons.schedule, Colors.orange),
+          _stat('Smjene', '${_stats?['totalShifts'] ?? 0}', Icons.schedule,
+              Colors.orange),
           const SizedBox(width: 16),
-          _stat('Volonteri', '${_stats?['totalVolunteers'] ?? 0}', Icons.people, Colors.green),
+          _stat('Volonteri', '${_stats?['totalVolunteers'] ?? 0}', Icons.people,
+              Colors.green),
           const SizedBox(width: 16),
-          _stat('Sati', _stats?['totalHours'] != null ? (_stats!['totalHours'] as num).toStringAsFixed(0) : '0', Icons.access_time, Colors.purple),
+          _stat(
+              'Sati',
+              _stats?['totalHours'] != null
+                  ? (_stats!['totalHours'] as num).toStringAsFixed(0)
+                  : '0',
+              Icons.access_time,
+              Colors.purple),
           const SizedBox(width: 16),
-          _stat('Kampanje', '${_stats?['activeCampaigns'] ?? 0}', Icons.campaign, Colors.teal),
+          _stat('Kampanje', '${_stats?['activeCampaigns'] ?? 0}',
+              Icons.campaign, Colors.teal),
           const SizedBox(width: 16),
-          _stat('Donacije', _stats?['totalDonations'] != null ? '${(_stats!['totalDonations'] as num).toStringAsFixed(0)} KM' : '0 KM', Icons.monetization_on, Colors.amber),
+          _stat(
+              'Donacije',
+              _stats?['totalDonations'] != null
+                  ? '${(_stats!['totalDonations'] as num).toStringAsFixed(0)} KM'
+                  : '0 KM',
+              Icons.monetization_on,
+              Colors.amber),
         ]),
         const SizedBox(height: 24),
         // Quick Actions
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Brze akcije', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Brze akcije',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Wrap(spacing: 12, runSpacing: 12, children: [
-                _actionBtn(Icons.add_circle, 'Kreiraj događaj', Colors.blue, () => widget.onNavigate(1)),
-                _actionBtn(Icons.schedule, 'Upravljaj smjenama', Colors.orange, () => widget.onNavigate(2)),
-                _actionBtn(Icons.people, 'Pregled volontera', Colors.green, () => widget.onNavigate(3)),
-                _actionBtn(Icons.campaign, 'Kampanje', Colors.teal, () => widget.onNavigate(4)),
-                _actionBtn(Icons.article, 'Blog objave', Colors.indigo, () => widget.onNavigate(5)),
-                _actionBtn(Icons.bar_chart, 'Izvještaji', Colors.purple, () => widget.onNavigate(6)),
-                _actionBtn(Icons.psychology, 'Vještine', Colors.deepPurple, () => widget.onNavigate(7)),
-                _actionBtn(Icons.settings, 'Postavke', Colors.blueGrey, () => widget.onNavigate(8)),
+                _actionBtn(Icons.add_circle, 'Kreiraj događaj', Colors.blue,
+                    () => widget.onNavigate(1)),
+                _actionBtn(Icons.schedule, 'Upravljaj smjenama', Colors.orange,
+                    () => widget.onNavigate(2)),
+                _actionBtn(Icons.people, 'Pregled volontera', Colors.green,
+                    () => widget.onNavigate(3)),
+                _actionBtn(Icons.campaign, 'Kampanje', Colors.teal,
+                    () => widget.onNavigate(4)),
+                _actionBtn(Icons.article, 'Blog objave', Colors.indigo,
+                    () => widget.onNavigate(5)),
+                _actionBtn(Icons.bar_chart, 'Izvještaji', Colors.purple,
+                    () => widget.onNavigate(6)),
+                _actionBtn(Icons.psychology, 'Vještine', Colors.deepPurple,
+                    () => widget.onNavigate(7)),
+                _actionBtn(Icons.settings, 'Postavke', Colors.blueGrey,
+                    () => widget.onNavigate(8)),
               ]),
             ]),
           ),
@@ -263,17 +330,26 @@ class _DashboardHomeState extends State<_DashboardHome> {
             child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Nadolazeći događaji', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  if (_events.isEmpty) const Text('Nema nadolazećih događaja', style: TextStyle(color: Colors.grey)),
-                  ..._events.map((e) => ListTile(
-                        leading: const Icon(Icons.event, color: Colors.blue),
-                        title: Text(e['title'] ?? ''),
-                        subtitle: Text(e['location'] ?? ''),
-                        trailing: Text(_fmt(e['startDate']), style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                      )),
-                ]),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Nadolazeći događaji',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      if (_events.isEmpty)
+                        const Text('Nema nadolazećih događaja',
+                            style: TextStyle(color: Colors.grey)),
+                      ..._events.map((e) => ListTile(
+                            leading:
+                                const Icon(Icons.event, color: Colors.blue),
+                            title: Text(e['title'] ?? ''),
+                            subtitle: Text(e['location'] ?? ''),
+                            trailing: Text(_fmt(e['startDate']),
+                                style: const TextStyle(
+                                    color: Colors.grey, fontSize: 12)),
+                          )),
+                    ]),
               ),
             ),
           ),
@@ -282,22 +358,37 @@ class _DashboardHomeState extends State<_DashboardHome> {
             child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Top volonteri', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  ..._leaderboard.asMap().entries.map((en) {
-                    final i = en.key;
-                    final v = en.value;
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: i == 0 ? Colors.amber : i == 1 ? Colors.grey : i == 2 ? Colors.brown.shade300 : Colors.blue.shade100,
-                        child: Text('${i + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      ),
-                      title: Text(v['userName'] ?? ''),
-                      trailing: Text('${_numFmt(v['totalHours'])}h', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    );
-                  }),
-                ]),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Top volonteri',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      ..._leaderboard.asMap().entries.map((en) {
+                        final i = en.key;
+                        final v = en.value;
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: i == 0
+                                ? Colors.amber
+                                : i == 1
+                                    ? Colors.grey
+                                    : i == 2
+                                        ? Colors.brown.shade300
+                                        : Colors.blue.shade100,
+                            child: Text('${i + 1}',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                          title: Text(v['userName'] ?? ''),
+                          trailing: Text('${_numFmt(v['totalHours'])}h',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                        );
+                      }),
+                    ]),
               ),
             ),
           ),
@@ -306,19 +397,25 @@ class _DashboardHomeState extends State<_DashboardHome> {
     );
   }
 
-  Widget _actionBtn(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _actionBtn(
+      IconData icon, String label, Color color, VoidCallback onTap) {
     return Material(
-      borderRadius: BorderRadius.circular(12),
-      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(8),
+      color: color.withValues(alpha: 0.08),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withValues(alpha: 0.16)),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(width: 10),
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+            Text(label,
+                style: TextStyle(color: color, fontWeight: FontWeight.w600)),
           ]),
         ),
       ),
@@ -328,13 +425,29 @@ class _DashboardHomeState extends State<_DashboardHome> {
   Widget _stat(String label, String value, IconData icon, Color c) => Expanded(
         child: Card(
           child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(icon, color: c, size: 28),
-              const SizedBox(height: 12),
-              Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text(label, style: const TextStyle(color: Colors.grey)),
+            padding: const EdgeInsets.all(18),
+            child: Row(children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: c.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: c, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(value,
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text(label, style: const TextStyle(color: Colors.grey)),
+                    ]),
+              ),
             ]),
           ),
         ),
@@ -365,7 +478,8 @@ class _DashboardHomeState extends State<_DashboardHome> {
 
   Future<void> _pickDateRange() async {
     final now = DateTime.now();
-    final initial = _dateRange ?? DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now);
+    final initial = _dateRange ??
+        DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now);
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),

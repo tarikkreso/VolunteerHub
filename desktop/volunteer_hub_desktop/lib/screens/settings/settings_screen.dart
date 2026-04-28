@@ -126,6 +126,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         const SizedBox(height: 16),
 
+        if (!isVolunteer) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Administratorske reference', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Divider(),
+                const SizedBox(height: 8),
+                Wrap(spacing: 12, runSpacing: 12, children: [
+                  ElevatedButton.icon(
+                    onPressed: _showCountryDialog,
+                    icon: const Icon(Icons.flag),
+                    label: const Text('Dodaj državu'),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _showCityDialog,
+                    icon: const Icon(Icons.location_city),
+                    label: const Text('Dodaj grad'),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _showCategoryDialog,
+                    icon: const Icon(Icons.category),
+                    label: const Text('Dodaj kategoriju'),
+                  ),
+                ]),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
         // System info
         Card(
           child: Padding(
@@ -194,6 +225,206 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ]),
+    );
+  }
+
+  Future<void> _showCountryDialog() async {
+    final nameCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool saving = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('Dodaj državu'),
+          content: SizedBox(
+            width: 420,
+            child: Form(
+              key: formKey,
+              child: TextFormField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Naziv države *'),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Unesite naziv države' : null,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Odustani')),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setS(() => saving = true);
+                      try {
+                        await _api.createCountry({'name': nameCtrl.text.trim()});
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Država uspješno dodana')),
+                          );
+                        }
+                      } catch (_) {
+                        setS(() => saving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Dodavanje države nije uspjelo')),
+                          );
+                        }
+                      }
+                    },
+              child: Text(saving ? 'Spremanje...' : 'Spremi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCityDialog() async {
+    final nameCtrl = TextEditingController();
+    final postalCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool saving = false;
+    List<dynamic> countries = [];
+    int? countryId;
+
+    try {
+      final res = await _api.getCountries();
+      countries = res.data is List ? res.data as List : [];
+      if (countries.isNotEmpty) {
+        countryId = countries.first['id'] as int?;
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('Dodaj grad'),
+          content: SizedBox(
+            width: 420,
+            child: Form(
+              key: formKey,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextFormField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Naziv grada *'),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Unesite naziv grada' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: postalCtrl,
+                  decoration: const InputDecoration(labelText: 'Poštanski broj'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int?>(
+                  initialValue: countryId,
+                  decoration: const InputDecoration(labelText: 'Država *'),
+                  items: countries
+                      .map<DropdownMenuItem<int?>>(
+                        (c) => DropdownMenuItem<int?>(
+                          value: c['id'] as int?,
+                          child: Text((c['name'] ?? '').toString()),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setS(() => countryId = v),
+                  validator: (v) => v == null ? 'Odaberite državu' : null,
+                ),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Odustani')),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setS(() => saving = true);
+                      try {
+                        await _api.createCity({
+                          'name': nameCtrl.text.trim(),
+                          'postalCode': postalCtrl.text.trim(),
+                          'countryId': countryId,
+                        });
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Grad uspješno dodan')),
+                          );
+                        }
+                      } catch (_) {
+                        setS(() => saving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Dodavanje grada nije uspjelo')),
+                          );
+                        }
+                      }
+                    },
+              child: Text(saving ? 'Spremanje...' : 'Spremi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCategoryDialog() async {
+    final nameCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool saving = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('Dodaj kategoriju'),
+          content: SizedBox(
+            width: 420,
+            child: Form(
+              key: formKey,
+              child: TextFormField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Naziv kategorije *'),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Unesite naziv kategorije' : null,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Odustani')),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setS(() => saving = true);
+                      try {
+                        await _api.createCategory({'name': nameCtrl.text.trim()});
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Kategorija uspješno dodana')),
+                          );
+                        }
+                      } catch (_) {
+                        setS(() => saving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Dodavanje kategorije nije uspjelo')),
+                          );
+                        }
+                      }
+                    },
+              child: Text(saving ? 'Spremanje...' : 'Spremi'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

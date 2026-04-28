@@ -16,6 +16,7 @@ class _EventsScreenState extends State<EventsScreen> {
 
   List<dynamic> _events = [];
   List<dynamic> _categories = [];
+  List<dynamic> _cities = [];
   final Map<int, List<dynamic>> _eventShifts = {};
   final Set<int> _expandedEvents = {};
   final Set<int> _loadingShiftsForEvent = {};
@@ -36,6 +37,7 @@ class _EventsScreenState extends State<EventsScreen> {
       final res = await Future.wait([
         _api.getEvents(query: {'pageSize': 100}),
         _api.getCategories(),
+        _api.getCities(),
       ]);
 
       final eventsRaw = res[0].data;
@@ -43,6 +45,7 @@ class _EventsScreenState extends State<EventsScreen> {
           ? (eventsRaw['items'] ?? [])
           : (eventsRaw is List ? eventsRaw : []);
       _categories = res[1].data is List ? res[1].data : [];
+      _cities = res[2].data is List ? res[2].data : [];
     } catch (e) {
       debugPrint('Events load error: $e');
     }
@@ -67,12 +70,14 @@ class _EventsScreenState extends State<EventsScreen> {
   List<dynamic> get _filteredEvents {
     var list = _events;
     if (_search.trim().isNotEmpty) {
-      final q = _search.trim().toLowerCase();
+        final q = _search.trim().toLowerCase();
       list = list.where((e) {
         final title = (e['title'] ?? '').toString().toLowerCase();
         final location = (e['location'] ?? '').toString().toLowerCase();
-        final org = (e['organizationName'] ?? '').toString().toLowerCase();
-        return title.contains(q) || location.contains(q) || org.contains(q);
+        final category = (e['categoryName'] ?? '').toString().toLowerCase();
+        return title.contains(q) ||
+            location.contains(q) ||
+            category.contains(q);
       }).toList();
     }
     if (_filterStatus != null) {
@@ -101,7 +106,7 @@ class _EventsScreenState extends State<EventsScreen> {
                 child: TextField(
                   decoration: const InputDecoration(
                     hintText:
-                        'Pretrazi dogadjaje, lokacije ili organizacije...',
+                        'Pretrazi dogadjaje, lokacije ili kategorije...',
                     prefixIcon: Icon(Icons.search),
                     border: OutlineInputBorder(),
                     isDense: true,
@@ -147,37 +152,40 @@ class _EventsScreenState extends State<EventsScreen> {
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: Card(
-              child: _filteredEvents.isEmpty
-                  ? const Center(child: Text('Nema dogadjaja'))
-                  : ListView.builder(
-                      itemCount: _filteredEvents.length,
-                      itemBuilder: (context, index) {
-                        final event = _filteredEvents[index];
-                        final eventId = event['id'] as int;
-                        final shifts = _eventShifts[eventId] ?? const [];
-                        final isExpanded = _expandedEvents.contains(eventId);
-                        final shiftsLoading =
-                            _loadingShiftsForEvent.contains(eventId);
-                        final lockedShifts =
-                            shifts.where((s) => s['isLocked'] == true).length;
-                        final totalSlots = shifts.fold<int>(
-                          0,
-                          (sum, s) =>
-                              sum +
-                              ((s['maxVolunteers'] as num?)?.toInt() ?? 0),
-                        );
-                        final filledSlots = shifts.fold<int>(
-                          0,
-                          (sum, s) =>
-                              sum +
-                              ((s['currentVolunteers'] as num?)?.toInt() ?? 0),
-                        );
+            child: _filteredEvents.isEmpty
+                ? const Center(child: Text('Nema dogadjaja'))
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    itemCount: _filteredEvents.length,
+                    itemBuilder: (context, index) {
+                      final event = _filteredEvents[index];
+                      final eventId = event['id'] as int;
+                      final shifts = _eventShifts[eventId] ?? const [];
+                      final isExpanded = _expandedEvents.contains(eventId);
+                      final shiftsLoading =
+                          _loadingShiftsForEvent.contains(eventId);
+                      final lockedShifts =
+                          shifts.where((s) => s['isLocked'] == true).length;
+                      final totalSlots = shifts.fold<int>(
+                        0,
+                        (sum, s) =>
+                            sum +
+                            ((s['maxVolunteers'] as num?)?.toInt() ?? 0),
+                      );
+                      final filledSlots = shifts.fold<int>(
+                        0,
+                        (sum, s) =>
+                            sum +
+                            ((s['currentVolunteers'] as num?)?.toInt() ?? 0),
+                      );
 
-                        return ExpansionTile(
+                        return Card(
                           key: ValueKey(eventId),
-                          initiallyExpanded: isExpanded,
-                          onExpansionChanged: (expanded) async {
+                          margin: const EdgeInsets.only(bottom: 12),
+                          clipBehavior: Clip.antiAlias,
+                          child: ExpansionTile(
+                            initiallyExpanded: isExpanded,
+                            onExpansionChanged: (expanded) async {
                             setState(() {
                               if (expanded) {
                                 _expandedEvents.add(eventId);
@@ -265,14 +273,6 @@ class _EventsScreenState extends State<EventsScreen> {
                                         'Popunjenost: $filledSlots/$totalSlots',
                                         Colors.teal,
                                       ),
-                                      if ((event['organizationName'] ?? '')
-                                          .toString()
-                                          .isNotEmpty)
-                                        _summaryChip(
-                                          Icons.business,
-                                          event['organizationName'],
-                                          Colors.indigo,
-                                        ),
                                     ],
                                   ),
                                   const SizedBox(height: 10),
@@ -380,11 +380,11 @@ class _EventsScreenState extends State<EventsScreen> {
                                 ],
                               ),
                             ),
-                          ],
+                            ],
+                          ),
                         );
-                      },
-                    ),
-            ),
+                    },
+                  ),
           ),
         ],
       ),
@@ -428,7 +428,7 @@ class _EventsScreenState extends State<EventsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Doslo je do greske. Pokusajte ponovo.')),
+              content: Text('Došlo je do greške. Pokušajte ponovo.')),
         );
       }
     }
@@ -469,7 +469,7 @@ class _EventsScreenState extends State<EventsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Doslo je do greske. Pokusajte ponovo.')),
+              content: Text('Došlo je do greške. Pokušajte ponovo.')),
         );
       }
     }
@@ -497,7 +497,12 @@ class _EventsScreenState extends State<EventsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: Text(isEdit ? 'Uredi smjenu' : 'Nova smjena'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: _dialogTitle(
+            icon: Icons.schedule,
+            title: isEdit ? 'Uredi smjenu' : 'Nova smjena',
+            subtitle: 'Raspored, kapacitet i osnovne informacije',
+          ),
           content: SizedBox(
             width: 520,
             child: Form(
@@ -506,6 +511,7 @@ class _EventsScreenState extends State<EventsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    _dialogSection('Detalji smjene'),
                     TextFormField(
                       controller: name,
                       decoration:
@@ -540,7 +546,8 @@ class _EventsScreenState extends State<EventsScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
+                    _dialogSection('Vrijeme smjene'),
                     ListTile(
                       title: Text('Pocetak: ${_fmtDateTimeValue(start)}'),
                       trailing: const Icon(Icons.schedule),
@@ -653,7 +660,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Doslo je do greske. Pokusajte ponovo.'),
+                        content: Text('Došlo je do greške. Pokušajte ponovo.'),
                       ),
                     );
                   }
@@ -703,7 +710,12 @@ class _EventsScreenState extends State<EventsScreen> {
               !nowUtc.isBefore(shiftEnd.toUtc());
 
           return AlertDialog(
-            title: Text('Odobravanje sati - ${shift['name'] ?? ''}'),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            title: _dialogTitle(
+              icon: Icons.fact_check,
+              title: 'Odobravanje sati',
+              subtitle: (shift['name'] ?? '').toString(),
+            ),
             content: SizedBox(
               width: 920,
               height: 520,
@@ -773,7 +785,7 @@ class _EventsScreenState extends State<EventsScreen> {
                                                       .showSnackBar(
                                                     const SnackBar(
                                                       content: Text(
-                                                        'Doslo je do greske. Pokusajte ponovo.',
+                                                        'Došlo je do greške. Pokušajte ponovo.',
                                                       ),
                                                     ),
                                                   );
@@ -801,7 +813,7 @@ class _EventsScreenState extends State<EventsScreen> {
                                                       .showSnackBar(
                                                     const SnackBar(
                                                       content: Text(
-                                                        'Doslo je do greske. Pokusajte ponovo.',
+                                                        'Došlo je do greške. Pokušajte ponovo.',
                                                       ),
                                                     ),
                                                   );
@@ -832,7 +844,7 @@ class _EventsScreenState extends State<EventsScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
-                                    'Doslo je do greske. Pokusajte ponovo.',
+                                    'Došlo je do greške. Pokušajte ponovo.',
                                   ),
                                 ),
                               );
@@ -867,7 +879,7 @@ class _EventsScreenState extends State<EventsScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
-                                    'Doslo je do greske. Pokusajte ponovo.',
+                                    'Došlo je do greške. Pokušajte ponovo.',
                                   ),
                                 ),
                               );
@@ -911,6 +923,7 @@ class _EventsScreenState extends State<EventsScreen> {
     double? latitude = _toDouble(existing?['latitude']);
     double? longitude = _toDouble(existing?['longitude']);
     int? categoryId = existing?['categoryId'];
+    int? cityId = existing?['cityId'];
     String status = existing?['status'] ?? 'Draft';
     bool featured = existing?['isFeatured'] ?? false;
 
@@ -924,11 +937,23 @@ class _EventsScreenState extends State<EventsScreen> {
       }
     }
 
+    if (cityId == null && existing?['cityName'] != null) {
+      final matches = _cities.where((c) => c['name'] == existing!['cityName']).toList();
+      if (matches.isNotEmpty) {
+        cityId = matches.first['id'] as int?;
+      }
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: Text(isEdit ? 'Uredi dogadjaj' : 'Novi dogadjaj'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: _dialogTitle(
+            icon: Icons.event,
+            title: isEdit ? 'Uredi dogadjaj' : 'Novi dogadjaj',
+            subtitle: 'Podaci, lokacija, kategorija i vrijeme',
+          ),
           content: SizedBox(
             width: 640,
             child: Form(
@@ -937,6 +962,7 @@ class _EventsScreenState extends State<EventsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    _dialogSection('Osnovni podaci'),
                     TextFormField(
                       controller: title,
                       decoration: const InputDecoration(labelText: 'Naziv *'),
@@ -966,6 +992,7 @@ class _EventsScreenState extends State<EventsScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
+                    _dialogSection('Lokacija'),
                     TextFormField(
                       controller: location,
                       decoration:
@@ -1017,6 +1044,7 @@ class _EventsScreenState extends State<EventsScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
+                    _dialogSection('Kategorija i kapacitet'),
                     DropdownButtonFormField<int>(
                       initialValue: categoryId,
                       decoration:
@@ -1032,6 +1060,24 @@ class _EventsScreenState extends State<EventsScreen> {
                       onChanged: (v) => setS(() => categoryId = v),
                       validator: (v) =>
                           v == null ? 'Odaberite kategoriju.' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<int?>(
+                      initialValue: cityId,
+                      decoration: const InputDecoration(labelText: 'Grad (opcionalno)'),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Bez grada'),
+                        ),
+                        ..._cities.map<DropdownMenuItem<int?>>(
+                          (c) => DropdownMenuItem<int?>(
+                            value: c['id'] as int?,
+                            child: Text((c['name'] ?? '').toString()),
+                          ),
+                        ),
+                      ],
+                      onChanged: (v) => setS(() => cityId = v),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -1080,6 +1126,7 @@ class _EventsScreenState extends State<EventsScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
+                    _dialogSection('Vrijeme dogadjaja'),
                     ListTile(
                       title: Text('Pocetak: ${_fmtDateTimeValue(startDate)}'),
                       trailing: const Icon(Icons.calendar_today),
@@ -1175,6 +1222,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   'endDate': endDate.toUtc().toIso8601String(),
                   'maxVolunteers': int.parse(maxVolunteers.text.trim()),
                   'categoryId': categoryId,
+                  if (cityId != null) 'cityId': cityId,
                   if (latitude != null) 'latitude': latitude,
                   if (longitude != null) 'longitude': longitude,
                   if (isEdit) 'status': status,
@@ -1204,7 +1252,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Doslo je do greske. Pokusajte ponovo.'),
+                        content: Text('Došlo je do greške. Pokušajte ponovo.'),
                       ),
                     );
                   }
@@ -1456,6 +1504,42 @@ class _EventsScreenState extends State<EventsScreen> {
       }
     } catch (_) {}
     return null;
+  }
+
+  Widget _dialogTitle({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(children: [
+      Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Theme.of(context).primaryColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: Theme.of(context).primaryColor),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 2),
+          Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        ]),
+      ),
+    ]);
+  }
+
+  Widget _dialogSection(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(children: [
+        Container(width: 4, height: 18, decoration: BoxDecoration(color: Theme.of(context).primaryColor, borderRadius: BorderRadius.circular(4))),
+        const SizedBox(width: 8),
+        Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+      ]),
+    );
   }
 
   Widget _summaryChip(IconData icon, String text, Color color) {

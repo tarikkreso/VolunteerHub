@@ -44,7 +44,10 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
     setState(() => _loading = true);
     try {
       final res = await _api.getMyShifts();
-      _shifts = res.data is List ? res.data : [];
+      final data = res.data;
+      _shifts = data is Map
+          ? (data['items'] as List? ?? [])
+          : (data is List ? data : []);
       _activeShiftId = null;
       _checkInTime = null;
       for (final s in _shifts) {

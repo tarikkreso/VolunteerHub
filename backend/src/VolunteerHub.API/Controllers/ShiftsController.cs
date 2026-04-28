@@ -19,7 +19,6 @@ public class ShiftsController : ControllerBase
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<List<ShiftDto>>> GetByEvent([FromQuery] int eventId)
     {
         var result = await _shiftService.GetByEventAsync(eventId);
@@ -27,7 +26,6 @@ public class ShiftsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [AllowAnonymous]
     public async Task<ActionResult<ShiftDto>> GetById(int id)
     {
         var result = await _shiftService.GetByIdAsync(id);

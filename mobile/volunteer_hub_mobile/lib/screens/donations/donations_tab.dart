@@ -429,14 +429,13 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
         'campaignId': widget.campaign['id'],
         'isAnonymous': _anonymous,
         'donorName': donorName,
+        'message': message.isEmpty ? null : message,
       });
       final data = response.data;
       final clientSecret =
           data is Map ? data['clientSecret']?.toString() : null;
       final publishableKey =
           data is Map ? data['publishableKey']?.toString() ?? '' : '';
-      final paymentIntentId =
-          data is Map ? data['paymentIntentId']?.toString() : null;
       final demoMode = data is Map && data['demoMode'] == true;
 
       if (!demoMode) {
@@ -457,15 +456,6 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
         );
         await Stripe.instance.presentPaymentSheet();
       }
-
-      await widget.api.createDonation({
-        'campaignId': widget.campaign['id'],
-        'amount': amount,
-        'isAnonymous': _anonymous,
-        'donorName': donorName,
-        'message': message.isEmpty ? null : message,
-        'stripePaymentIntentId': paymentIntentId,
-      });
 
       if (!mounted) return;
       Navigator.of(context).pop(true);

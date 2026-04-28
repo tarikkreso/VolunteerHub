@@ -257,6 +257,11 @@ public class RecommendationService : IRecommendationService
             return await GetFallbackRecommendationsAsync(top);
         }
 
+        var userCityId = await _context.Volunteers
+            .Where(u => u.Id == userId)
+            .Select(u => u.CityId)
+            .FirstOrDefaultAsync();
+
         // 3. Score each event based on skill-content matching
         var scored = new List<(EventDto Event, double Score, string Reasons)>();
 
@@ -307,10 +312,6 @@ public class RecommendationService : IRecommendationService
             if (evt.IsFeatured) score += 0.1;
 
             // Bonus for location proximity (same city)
-            var userCityId = await _context.Volunteers
-                .Where(u => u.Id == userId)
-                .Select(u => u.CityId)
-                .FirstOrDefaultAsync();
             if (userCityId != null && evt.CityId == userCityId)
                 score += 0.15;
 

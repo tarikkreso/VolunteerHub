@@ -20,7 +20,9 @@ public class ShiftService : IShiftService
         return await _context.Shifts
             .Include(s => s.Event)
             .Include(s => s.Registrations)
-            .Where(s => s.EventId == eventId)
+            .Where(s => s.EventId == eventId && !s.IsDeleted)
+            .OrderBy(s => s.StartTime)
+            .Take(100)
             .Select(s => new ShiftDto
             {
                 Id = s.Id,
@@ -43,7 +45,7 @@ public class ShiftService : IShiftService
         var shift = await _context.Shifts
             .Include(s => s.Event)
             .Include(s => s.Registrations)
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
 
         if (shift == null) return null;
 

@@ -21,4 +21,10 @@ public class ShiftRegistration : BaseEntity
     public bool IsSuspicious { get; set; } = false; // Pattern recognition for suspicious hours
     public bool IsApproved { get; set; } = false; // Admin-approved hours
     public string? AdminNotes { get; set; } // Admin comments on the registration
+    public int? ApprovedByUserId { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public int? RejectedByUserId { get; set; }
+    public DateTime? RejectedAt { get; set; }
+    public int? FinalApprovedByUserId { get; set; }
+    public DateTime? FinalApprovedAt { get; set; }
 }

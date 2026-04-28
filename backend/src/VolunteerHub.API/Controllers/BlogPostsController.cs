@@ -19,7 +19,6 @@ public class BlogPostsController : ControllerBase
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<PagedResultDto<BlogPostDto>>> GetAll([FromQuery] SearchRequestDto request)
     {
         var result = await _blogPostService.GetAllAsync(request);
@@ -35,7 +34,6 @@ public class BlogPostsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [AllowAnonymous]
     public async Task<ActionResult<BlogPostDto>> GetById(int id)
     {
         var result = await _blogPostService.GetByIdAsync(id, incrementViews: true);

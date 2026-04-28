@@ -5,7 +5,7 @@ services:
     container_name: volunteerhub-sqlserver
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
+      - SA_PASSWORD=${DB_PASSWORD}
       - MSSQL_PID=Developer
     ports:
       - "${SQL_PORT:-1433}:1433"
@@ -14,7 +14,7 @@ services:
     networks:
       - volunteerhub-network
     healthcheck:
-      test: [ "CMD-SHELL", "(/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${DB_PASSWORD:-YourStrong@Passw0rd} -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ${DB_PASSWORD:-YourStrong@Passw0rd} -Q 'SELECT 1') || exit 1" ]
+      test: [ "CMD-SHELL", "(/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${DB_PASSWORD} -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ${DB_PASSWORD} -Q 'SELECT 1') || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -25,8 +25,8 @@ services:
     image: rabbitmq:3-management
     container_name: volunteerhub-rabbitmq
     environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
     ports:
       - "${RABBITMQ_PORT:-5672}:5672" # AMQP port
       - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672" # Management UI
@@ -49,26 +49,29 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=${DB_NAME:-220193};User Id=sa;Password=${DB_PASSWORD:-YourStrong@Passw0rd};TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=${DB_NAME:-220193};User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Port=${RABBITMQ_PORT:-5672}
-      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
-      - RabbitMQ__Password=${RABBITMQ_PASSWORD:-guest}
-      - Jwt__Key=${JWT_KEY:-YourSuperSecretKeyAtLeast32CharactersLong123!}
+      - RabbitMQ__Username=${RABBITMQ_USER}
+      - RabbitMQ__Password=${RABBITMQ_PASSWORD}
+      - Jwt__Key=${JWT_KEY}
       - Jwt__Issuer=${JWT_ISSUER:-VolunteerHub}
       - Jwt__Audience=${JWT_AUDIENCE:-VolunteerHub}
-      - Stripe__SecretKey=${STRIPE_SECRET_KEY:-sk_test_your_stripe_secret_key}
-      - Stripe__PublishableKey=${STRIPE_PUBLISHABLE_KEY:-pk_test_your_stripe_publishable_key}
-      - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET:-whsec_your_webhook_secret}
+      - Stripe__SecretKey=${STRIPE_SECRET_KEY}
+      - Stripe__PublishableKey=${STRIPE_PUBLISHABLE_KEY}
+      - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET}
       - Smtp__Host=${SMTP_HOST:-mailhog}
       - Smtp__Port=${SMTP_PORT:-1025}
-      - Smtp__Username=${SMTP_USERNAME:-}
-      - Smtp__Password=${SMTP_PASSWORD:-}
+      - Smtp__Username=${SMTP_USERNAME}
+      - Smtp__Password=${SMTP_PASSWORD}
       - Smtp__UseSsl=${SMTP_USE_SSL:-false}
       - Smtp__FromEmail=${SMTP_FROM_EMAIL:-noreply@volunteerhub.ba}
       - Smtp__FromName=${SMTP_FROM_NAME:-VolunteerHub}
       - Auth__PasswordResetExpirationMinutes=30
       - App__UseHttpsRedirection=false
+      - Cors__AllowedOrigins__0=${DESKTOP_CLIENT_URL:-http://localhost:7000}
+      - Cors__AllowedOrigins__1=${MOBILE_CLIENT_URL:-http://localhost:5000}
+      - Cors__AllowedOrigins__2=${API_CLIENT_URL:-http://127.0.0.1:7000}
     ports:
       - "7000:80"
     depends_on:
@@ -90,21 +93,25 @@ services:
     container_name: volunteerhub-worker
     environment:
       - DOTNET_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=${DB_NAME:-220193};User Id=sa;Password=${DB_PASSWORD:-YourStrong@Passw0rd};TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=${DB_NAME:-220193};User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Port=${RABBITMQ_PORT:-5672}
-      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
-      - RabbitMQ__Password=${RABBITMQ_PASSWORD:-guest}
+      - RabbitMQ__Username=${RABBITMQ_USER}
+      - RabbitMQ__Password=${RABBITMQ_PASSWORD}
       - Smtp__Host=${SMTP_HOST:-mailhog}
       - Smtp__Port=${SMTP_PORT:-1025}
-      - Smtp__Username=${SMTP_USERNAME:-}
-      - Smtp__Password=${SMTP_PASSWORD:-}
+      - Smtp__Username=${SMTP_USERNAME}
+      - Smtp__Password=${SMTP_PASSWORD}
       - Smtp__UseSsl=${SMTP_USE_SSL:-false}
       - Smtp__FromEmail=${SMTP_FROM_EMAIL:-noreply@volunteerhub.ba}
       - Smtp__FromName=${SMTP_FROM_NAME:-VolunteerHub}
     depends_on:
+      sqlserver:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     networks:
       - volunteerhub-network
     restart: unless-stopped
