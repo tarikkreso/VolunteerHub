@@ -5,7 +5,8 @@ import 'package:latlong2/latlong.dart';
 import '../../services/api_service.dart';
 
 class EventsScreen extends StatefulWidget {
-  const EventsScreen({super.key});
+  final int? focusEventId;
+  const EventsScreen({super.key, this.focusEventId});
 
   @override
   State<EventsScreen> createState() => _EventsScreenState();
@@ -46,6 +47,13 @@ class _EventsScreenState extends State<EventsScreen> {
           : (eventsRaw is List ? eventsRaw : []);
       _categories = res[1].data is List ? res[1].data : [];
       _cities = res[2].data is List ? res[2].data : [];
+      final focusId = widget.focusEventId;
+      if (focusId != null && _events.any((e) => e['id'] == focusId)) {
+        _expandedEvents
+          ..clear()
+          ..add(focusId);
+        await _loadShiftsForEvent(focusId);
+      }
     } catch (e) {
       debugPrint('Events load error: $e');
     }
@@ -70,7 +78,7 @@ class _EventsScreenState extends State<EventsScreen> {
   List<dynamic> get _filteredEvents {
     var list = _events;
     if (_search.trim().isNotEmpty) {
-        final q = _search.trim().toLowerCase();
+      final q = _search.trim().toLowerCase();
       list = list.where((e) {
         final title = (e['title'] ?? '').toString().toLowerCase();
         final location = (e['location'] ?? '').toString().toLowerCase();
@@ -105,8 +113,7 @@ class _EventsScreenState extends State<EventsScreen> {
               Expanded(
                 child: TextField(
                   decoration: const InputDecoration(
-                    hintText:
-                        'Pretrazi dogadjaje, lokacije ili kategorije...',
+                    hintText: 'Pretrazi dogadjaje, lokacije ili kategorije...',
                     prefixIcon: Icon(Icons.search),
                     border: OutlineInputBorder(),
                     isDense: true,
@@ -169,8 +176,7 @@ class _EventsScreenState extends State<EventsScreen> {
                       final totalSlots = shifts.fold<int>(
                         0,
                         (sum, s) =>
-                            sum +
-                            ((s['maxVolunteers'] as num?)?.toInt() ?? 0),
+                            sum + ((s['maxVolunteers'] as num?)?.toInt() ?? 0),
                       );
                       final filledSlots = shifts.fold<int>(
                         0,
@@ -179,13 +185,13 @@ class _EventsScreenState extends State<EventsScreen> {
                             ((s['currentVolunteers'] as num?)?.toInt() ?? 0),
                       );
 
-                        return Card(
-                          key: ValueKey(eventId),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          clipBehavior: Clip.antiAlias,
-                          child: ExpansionTile(
-                            initiallyExpanded: isExpanded,
-                            onExpansionChanged: (expanded) async {
+                      return Card(
+                        key: ValueKey(eventId),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        clipBehavior: Clip.antiAlias,
+                        child: ExpansionTile(
+                          initiallyExpanded: isExpanded,
+                          onExpansionChanged: (expanded) async {
                             setState(() {
                               if (expanded) {
                                 _expandedEvents.add(eventId);
@@ -380,9 +386,9 @@ class _EventsScreenState extends State<EventsScreen> {
                                 ],
                               ),
                             ),
-                            ],
-                          ),
-                        );
+                          ],
+                        ),
+                      );
                     },
                   ),
           ),
@@ -497,7 +503,8 @@ class _EventsScreenState extends State<EventsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           title: _dialogTitle(
             icon: Icons.schedule,
             title: isEdit ? 'Uredi smjenu' : 'Nova smjena',
@@ -710,7 +717,8 @@ class _EventsScreenState extends State<EventsScreen> {
               !nowUtc.isBefore(shiftEnd.toUtc());
 
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             title: _dialogTitle(
               icon: Icons.fact_check,
               title: 'Odobravanje sati',
@@ -938,7 +946,8 @@ class _EventsScreenState extends State<EventsScreen> {
     }
 
     if (cityId == null && existing?['cityName'] != null) {
-      final matches = _cities.where((c) => c['name'] == existing!['cityName']).toList();
+      final matches =
+          _cities.where((c) => c['name'] == existing!['cityName']).toList();
       if (matches.isNotEmpty) {
         cityId = matches.first['id'] as int?;
       }
@@ -948,7 +957,8 @@ class _EventsScreenState extends State<EventsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           title: _dialogTitle(
             icon: Icons.event,
             title: isEdit ? 'Uredi dogadjaj' : 'Novi dogadjaj',
@@ -1064,7 +1074,7 @@ class _EventsScreenState extends State<EventsScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<int?>(
                       initialValue: cityId,
-                      decoration: const InputDecoration(labelText: 'Grad (opcionalno)'),
+                      decoration: const InputDecoration(labelText: 'Grad'),
                       items: [
                         const DropdownMenuItem<int?>(
                           value: null,
@@ -1233,7 +1243,15 @@ class _EventsScreenState extends State<EventsScreen> {
                   if (isEdit) {
                     await _api.updateEvent(existing['id'], payload);
                   } else {
-                    await _api.createEvent(payload);
+                    final res = await _api.createEvent(payload);
+                    final created = res.data is Map ? res.data as Map : null;
+                    final createdId = created?['id'];
+                    if (createdId is num) {
+                      _expandedEvents
+                        ..clear()
+                        ..add(createdId.toInt());
+                      await _loadShiftsForEvent(createdId.toInt());
+                    }
                   }
                   if (ctx.mounted) Navigator.pop(ctx);
                   await _loadAll();
@@ -1523,9 +1541,12 @@ class _EventsScreenState extends State<EventsScreen> {
       const SizedBox(width: 12),
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
-          Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text(subtitle,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
         ]),
       ),
     ]);
@@ -1535,9 +1556,15 @@ class _EventsScreenState extends State<EventsScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(children: [
-        Container(width: 4, height: 18, decoration: BoxDecoration(color: Theme.of(context).primaryColor, borderRadius: BorderRadius.circular(4))),
+        Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                borderRadius: BorderRadius.circular(4))),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(title,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
       ]),
     );
   }

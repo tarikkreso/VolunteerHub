@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -40,63 +41,96 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Postavke', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const Text('Postavke',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 24),
 
         // Profile section
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Profil korisnika', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Profil korisnika',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const Divider(),
               const SizedBox(height: 8),
               Row(children: [
                 CircleAvatar(
                   radius: 36,
-                  backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.15),
-                  child: Text(
-                    '${_initial(user?['firstName'], fallback: 'U')}${_initial(user?['lastName'])}'.toUpperCase(),
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
-                  ),
+                  backgroundColor:
+                      Theme.of(context).primaryColor.withValues(alpha: 0.15),
+                  backgroundImage:
+                      (user?['profileImageUrl'] ?? '').toString().isNotEmpty
+                          ? NetworkImage(user!['profileImageUrl'].toString())
+                          : null,
+                  child: (user?['profileImageUrl'] ?? '').toString().isEmpty
+                      ? Text(
+                          '${_initial(user?['firstName'], fallback: 'U')}${_initial(user?['lastName'])}'
+                              .toUpperCase(),
+                          style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 20),
                 Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('${user?['firstName'] ?? ''} ${user?['lastName'] ?? ''}',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      const Icon(Icons.email_outlined, size: 14, color: Colors.grey),
-                      const SizedBox(width: 6),
-                      Text(user?['email'] ?? '', style: const TextStyle(color: Colors.grey)),
-                    ]),
-                    if ((user?['phone'] ?? user?['phoneNumber']) != null) ...[
-                      const SizedBox(height: 4),
-                      Row(children: [
-                        const Icon(Icons.phone_outlined, size: 14, color: Colors.grey),
-                        const SizedBox(width: 6),
-                        Text((user?['phone'] ?? user?['phoneNumber'] ?? '').toString(), style: const TextStyle(color: Colors.grey)),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                            '${user?['firstName'] ?? ''} ${user?['lastName'] ?? ''}',
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Row(children: [
+                          const Icon(Icons.email_outlined,
+                              size: 14, color: Colors.grey),
+                          const SizedBox(width: 6),
+                          Text(user?['email'] ?? '',
+                              style: const TextStyle(color: Colors.grey)),
+                        ]),
+                        if ((user?['phone'] ?? user?['phoneNumber']) !=
+                            null) ...[
+                          const SizedBox(height: 4),
+                          Row(children: [
+                            const Icon(Icons.phone_outlined,
+                                size: 14, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Text(
+                                (user?['phone'] ?? user?['phoneNumber'] ?? '')
+                                    .toString(),
+                                style: const TextStyle(color: Colors.grey)),
+                          ]),
+                        ],
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .primaryColor
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(user?['role'] ?? 'Korisnik',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).primaryColor)),
+                        ),
                       ]),
-                    ],
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(user?['role'] ?? 'Korisnik',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Theme.of(context).primaryColor)),
-                    ),
-                  ]),
                 ),
               ]),
               const SizedBox(height: 12),
               Row(
                 children: [
                   ElevatedButton.icon(
-                    onPressed: user == null ? null : () => _showEditProfileDialog(auth, user),
+                    onPressed: user == null
+                        ? null
+                        : () => _showEditProfileDialog(auth, user),
                     icon: const Icon(Icons.edit),
                     label: const Text('Uredi profil'),
                   ),
@@ -112,57 +146,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Statistika', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const Divider(),
-                Wrap(spacing: 16, runSpacing: 16, children: [
-                  _statTile('Ukupno sati', '${(_userStats!['totalHours'] ?? 0).toStringAsFixed(1)}', Icons.access_time, Colors.purple),
-                  _statTile('Događaji', '${_userStats!['totalEvents'] ?? 0}', Icons.event, Colors.blue),
-                  _statTile('Nadolazeće smjene', '${_userStats!['upcomingShifts'] ?? 0}', Icons.schedule, Colors.green),
-                  _statTile('Rang', '#${_userStats!['rank'] ?? '-'}', Icons.leaderboard, Colors.amber),
-                ]),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Statistika',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Divider(),
+                    Wrap(spacing: 16, runSpacing: 16, children: [
+                      _statTile(
+                          'Ukupno sati',
+                          '${(_userStats!['totalHours'] ?? 0).toStringAsFixed(1)}',
+                          Icons.access_time,
+                          Colors.purple),
+                      _statTile(
+                          'Događaji',
+                          '${_userStats!['totalEvents'] ?? 0}',
+                          Icons.event,
+                          Colors.blue),
+                      _statTile(
+                          'Nadolazeće smjene',
+                          '${_userStats!['upcomingShifts'] ?? 0}',
+                          Icons.schedule,
+                          Colors.green),
+                      _statTile('Rang', '#${_userStats!['rank'] ?? '-'}',
+                          Icons.leaderboard, Colors.amber),
+                    ]),
+                  ]),
             ),
           ),
         const SizedBox(height: 16),
-
-        if (!isVolunteer) ...[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Administratorske reference', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const Divider(),
-                const SizedBox(height: 8),
-                Wrap(spacing: 12, runSpacing: 12, children: [
-                  ElevatedButton.icon(
-                    onPressed: _showCountryDialog,
-                    icon: const Icon(Icons.flag),
-                    label: const Text('Dodaj državu'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _showCityDialog,
-                    icon: const Icon(Icons.location_city),
-                    label: const Text('Dodaj grad'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _showCategoryDialog,
-                    icon: const Icon(Icons.category),
-                    label: const Text('Dodaj kategoriju'),
-                  ),
-                ]),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-
         // System info
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Sistemske informacije', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Sistemske informacije',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const Divider(),
               const SizedBox(height: 8),
               _infoRow('Platforma', 'VolunteerHub Desktop Admin'),
@@ -184,8 +205,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Akcije', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Akcije',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const Divider(),
               const SizedBox(height: 8),
               SizedBox(
@@ -201,15 +224,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       context: context,
                       builder: (ctx) => AlertDialog(
                         title: const Text('Odjava'),
-                        content: const Text('Jeste li sigurni da se želite odjaviti?'),
+                        content: const Text(
+                            'Jeste li sigurni da se želite odjaviti?'),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Odustani')),
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Odustani')),
                           ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white),
                             onPressed: () {
                               Navigator.pop(ctx);
                               auth.logout();
-                              Navigator.of(context).pushReplacementNamed('/login');
+                              Navigator.of(context)
+                                  .pushReplacementNamed('/login');
                             },
                             child: const Text('Odjavi se'),
                           ),
@@ -228,212 +257,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _showCountryDialog() async {
-    final nameCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool saving = false;
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: const Text('Dodaj državu'),
-          content: SizedBox(
-            width: 420,
-            child: Form(
-              key: formKey,
-              child: TextFormField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Naziv države *'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Unesite naziv države' : null,
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Odustani')),
-            ElevatedButton(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) return;
-                      setS(() => saving = true);
-                      try {
-                        await _api.createCountry({'name': nameCtrl.text.trim()});
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Država uspješno dodana')),
-                          );
-                        }
-                      } catch (_) {
-                        setS(() => saving = false);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Dodavanje države nije uspjelo')),
-                          );
-                        }
-                      }
-                    },
-              child: Text(saving ? 'Spremanje...' : 'Spremi'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showCityDialog() async {
-    final nameCtrl = TextEditingController();
-    final postalCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool saving = false;
-    List<dynamic> countries = [];
-    int? countryId;
-
-    try {
-      final res = await _api.getCountries();
-      countries = res.data is List ? res.data as List : [];
-      if (countries.isNotEmpty) {
-        countryId = countries.first['id'] as int?;
-      }
-    } catch (_) {}
-
-    if (!mounted) return;
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: const Text('Dodaj grad'),
-          content: SizedBox(
-            width: 420,
-            child: Form(
-              key: formKey,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                TextFormField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Naziv grada *'),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Unesite naziv grada' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: postalCtrl,
-                  decoration: const InputDecoration(labelText: 'Poštanski broj'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<int?>(
-                  initialValue: countryId,
-                  decoration: const InputDecoration(labelText: 'Država *'),
-                  items: countries
-                      .map<DropdownMenuItem<int?>>(
-                        (c) => DropdownMenuItem<int?>(
-                          value: c['id'] as int?,
-                          child: Text((c['name'] ?? '').toString()),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) => setS(() => countryId = v),
-                  validator: (v) => v == null ? 'Odaberite državu' : null,
-                ),
-              ]),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Odustani')),
-            ElevatedButton(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) return;
-                      setS(() => saving = true);
-                      try {
-                        await _api.createCity({
-                          'name': nameCtrl.text.trim(),
-                          'postalCode': postalCtrl.text.trim(),
-                          'countryId': countryId,
-                        });
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Grad uspješno dodan')),
-                          );
-                        }
-                      } catch (_) {
-                        setS(() => saving = false);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Dodavanje grada nije uspjelo')),
-                          );
-                        }
-                      }
-                    },
-              child: Text(saving ? 'Spremanje...' : 'Spremi'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showCategoryDialog() async {
-    final nameCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool saving = false;
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: const Text('Dodaj kategoriju'),
-          content: SizedBox(
-            width: 420,
-            child: Form(
-              key: formKey,
-              child: TextFormField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Naziv kategorije *'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Unesite naziv kategorije' : null,
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Odustani')),
-            ElevatedButton(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) return;
-                      setS(() => saving = true);
-                      try {
-                        await _api.createCategory({'name': nameCtrl.text.trim()});
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Kategorija uspješno dodana')),
-                          );
-                        }
-                      } catch (_) {
-                        setS(() => saving = false);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Dodavanje kategorije nije uspjelo')),
-                          );
-                        }
-                      }
-                    },
-              child: Text(saving ? 'Spremanje...' : 'Spremi'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showEditProfileDialog(AuthProvider auth, Map<String, dynamic> user) {
-    final firstNameCtrl = TextEditingController(text: (user['firstName'] ?? '').toString());
-    final lastNameCtrl = TextEditingController(text: (user['lastName'] ?? '').toString());
-    final phoneCtrl = TextEditingController(text: (user['phone'] ?? user['phoneNumber'] ?? '').toString());
+    final firstNameCtrl =
+        TextEditingController(text: (user['firstName'] ?? '').toString());
+    final lastNameCtrl =
+        TextEditingController(text: (user['lastName'] ?? '').toString());
+    final phoneCtrl = TextEditingController(
+        text: (user['phone'] ?? user['phoneNumber'] ?? '').toString());
     final oldPassCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
+    final imageCtrl =
+        TextEditingController(text: (user['profileImageUrl'] ?? '').toString());
     bool changePassword = false;
     bool saving = false;
     final formKey = GlobalKey<FormState>();
@@ -453,13 +287,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   TextFormField(
                     controller: firstNameCtrl,
                     decoration: const InputDecoration(labelText: 'Ime *'),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Unesite ime' : null,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Unesite ime' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: lastNameCtrl,
                     decoration: const InputDecoration(labelText: 'Prezime *'),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Unesite prezime' : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Unesite prezime'
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -473,6 +310,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       return ok ? null : 'Unesite ispravan broj telefona';
                     },
                   ),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: imageCtrl,
+                        decoration:
+                            const InputDecoration(labelText: 'Fotografija'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              final picked =
+                                  await FilePicker.platform.pickFiles(
+                                type: FileType.image,
+                                allowMultiple: false,
+                              );
+                              final path = picked?.files.single.path;
+                              if (path == null) return;
+                              try {
+                                final res = await _api.uploadUserImage(path);
+                                final data = res.data is Map
+                                    ? res.data as Map
+                                    : const {};
+                                final url = data['imageUrl']?.toString();
+                                if (url != null && url.isNotEmpty) {
+                                  setS(() => imageCtrl.text = url);
+                                }
+                              } catch (_) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Upload fotografije nije uspio.')),
+                                  );
+                                }
+                              }
+                            },
+                      icon: const Icon(Icons.upload),
+                      label: const Text('Upload'),
+                    ),
+                  ]),
                   const SizedBox(height: 8),
                   CheckboxListTile(
                     title: const Text('Promijeni lozinku'),
@@ -484,23 +365,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (changePassword) ...[
                     TextFormField(
                       controller: oldPassCtrl,
-                      decoration: const InputDecoration(labelText: 'Trenutna lozinka *'),
+                      decoration: const InputDecoration(
+                          labelText: 'Trenutna lozinka *'),
                       obscureText: true,
                       validator: (v) {
                         if (!changePassword) return null;
-                        if (v == null || v.isEmpty) return 'Unesite trenutnu lozinku';
+                        if (v == null || v.isEmpty)
+                          return 'Unesite trenutnu lozinku';
                         return null;
                       },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: newPassCtrl,
-                      decoration: const InputDecoration(labelText: 'Nova lozinka *'),
+                      decoration:
+                          const InputDecoration(labelText: 'Nova lozinka *'),
                       obscureText: true,
                       validator: (v) {
                         if (!changePassword) return null;
-                        if (v == null || v.isEmpty) return 'Unesite novu lozinku';
-                        if (v.length < 6) return 'Lozinka mora imati najmanje 6 znakova';
+                        if (v == null || v.isEmpty)
+                          return 'Unesite novu lozinku';
+                        if (v.length < 6)
+                          return 'Lozinka mora imati najmanje 6 znakova';
                         return null;
                       },
                     ),
@@ -510,7 +396,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Odustani')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Odustani')),
             ElevatedButton(
               onPressed: saving
                   ? null
@@ -522,6 +410,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           'firstName': firstNameCtrl.text.trim(),
                           'lastName': lastNameCtrl.text.trim(),
                           'phoneNumber': phoneCtrl.text.trim(),
+                          'profileImageUrl': imageCtrl.text.trim(),
                         };
                         if (changePassword) {
                           data['oldPassword'] = oldPassCtrl.text;
@@ -536,23 +425,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Profil uspješno ažuriran')),
+                            const SnackBar(
+                                content: Text('Profil uspješno ažuriran')),
                           );
                         }
                       } on DioException catch (e) {
                         setS(() => saving = false);
                         String msg = 'Došlo je do greške. Pokušajte ponovo.';
-                        if (e.response?.data is Map && (e.response?.data['message']?.toString().isNotEmpty ?? false)) {
+                        if (e.response?.data is Map &&
+                            (e.response?.data['message']
+                                    ?.toString()
+                                    .isNotEmpty ??
+                                false)) {
                           msg = e.response?.data['message'].toString() ?? msg;
                         }
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text(msg)));
                         }
                       } catch (_) {
                         setS(() => saving = false);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')),
+                            const SnackBar(
+                                content: Text(
+                                    'Došlo je do greške. Pokušajte ponovo.')),
                           );
                         }
                       }
@@ -595,7 +492,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(width: 12),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: color)),
           Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ]),
       ]),
@@ -606,8 +505,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(children: [
-        SizedBox(width: 160, child: Text(label, style: const TextStyle(color: Colors.grey))),
-        Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600))),
+        SizedBox(
+            width: 160,
+            child: Text(label, style: const TextStyle(color: Colors.grey))),
+        Expanded(
+            child: Text(value,
+                style: const TextStyle(fontWeight: FontWeight.w600))),
       ]),
     );
   }

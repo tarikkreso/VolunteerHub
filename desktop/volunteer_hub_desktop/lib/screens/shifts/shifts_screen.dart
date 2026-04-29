@@ -72,12 +72,12 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text(
-                'Shift Management & Hour Approval',
+                'Upravljanje smjenama i odobrenje sati',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
               Text(
-                'Manage shifts, review volunteer hours and lock approved data.',
+                'Upravljajte smjenama, pregledajte sate volontera i finalno zaključajte odobrene podatke.',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
             ]),
@@ -89,7 +89,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
               isExpanded: true,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.event),
-                labelText: 'Event',
+                labelText: 'Događaj',
               ),
               items: _events
                   .map<DropdownMenuItem<int>>(
@@ -176,7 +176,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                             onPressed: () => _showRegistrationsDialog(shift),
                             icon:
                                 const Icon(Icons.fact_check_outlined, size: 18),
-                            label: const Text('Manage Hours'),
+                            label: const Text('Upravljaj satima'),
                           ),
                           const SizedBox(width: 8),
                           if (!isLocked) ...[
@@ -458,7 +458,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
             Icon(isLocked ? Icons.lock : Icons.fact_check_outlined,
                 color: isLocked ? Colors.red : Theme.of(context).primaryColor),
             const SizedBox(width: 10),
-            Expanded(child: Text('Manage Shift: ${_timeRange(shift)}')),
+            Expanded(child: Text('Upravljanje smjenom: ${_timeRange(shift)}')),
             IconButton(
                 onPressed: () => Navigator.pop(dialogContext),
                 icon: const Icon(Icons.close)),
@@ -481,100 +481,117 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                           child: Row(children: [
                             Expanded(
                                 child:
-                                    _metaBlock('Event', _selectedEventTitle)),
+                                    _metaBlock('Događaj', _selectedEventTitle)),
                             Expanded(
-                                child: _metaBlock('Time', _timeRange(shift))),
+                                child:
+                                    _metaBlock('Vrijeme', _timeRange(shift))),
                             Expanded(
-                                child: _metaBlock('Capacity',
+                                child: _metaBlock('Kapacitet',
                                     '${shift['currentVolunteers'] ?? 0}/${shift['maxVolunteers'] ?? 0}')),
-                            _pill('$flagged Flagged',
+                            _pill('$flagged za provjeru',
                                 flagged > 0 ? Colors.red : Colors.green),
                             const SizedBox(width: 8),
-                            _pill('$pending Pending', Colors.orange),
+                            _pill('$pending na čekanju', Colors.orange),
                             if (isLocked) ...[
                               const SizedBox(width: 8),
-                              _pill('Locked', Colors.red),
+                              _pill('Zaključano', Colors.red),
                             ],
                           ]),
                         ),
                         const SizedBox(height: 16),
                         Row(children: [
-                          Text('Volunteers (${regs.length})',
+                          Text('Volonteri (${regs.length})',
                               style:
                                   const TextStyle(fontWeight: FontWeight.w700)),
                           const Spacer(),
                           if (flagged > 0)
-                            Text('$flagged volunteers flagged for review',
+                            Text('$flagged volontera za provjeru',
                                 style: const TextStyle(color: Colors.red)),
                         ]),
                         const SizedBox(height: 10),
-                        _approvalHeader(),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: 1180,
+                            child: _approvalHeader(),
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         Expanded(
                           child: regs.isEmpty
                               ? const Center(
                                   child: Text('Nema prijavljenih volontera'))
-                              : ListView.separated(
-                                  itemCount: regs.length,
-                                  separatorBuilder: (_, __) =>
-                                      const Divider(height: 1),
-                                  itemBuilder: (_, index) {
-                                    final reg = regs[index];
-                                    final id = (reg['id'] as num).toInt();
-                                    final flags = _flagsFor(reg, shift);
-                                    final controller = approvedControllers[id]!;
-                                    return _approvalRow(
-                                      registration: reg,
-                                      shift: shift,
-                                      flags: flags,
-                                      controller: controller,
-                                      locked: isLocked,
-                                      onApprove: () async {
-                                        final hours = double.tryParse(controller
-                                            .text
-                                            .trim()
-                                            .replaceAll(',', '.'));
-                                        final notes = flags.isEmpty
-                                            ? null
-                                            : await _askAdminNote(
-                                                dialogContext);
-                                        if (flags.isNotEmpty &&
-                                            (notes == null ||
-                                                notes.trim().isEmpty)) return;
-                                        try {
-                                          await _api.approveRegistration(id,
-                                              hours: hours, notes: notes);
-                                          await refresh(setS);
-                                        } catch (e) {
-                                          _showError();
-                                        }
+                              : SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: SizedBox(
+                                    width: 1180,
+                                    child: ListView.separated(
+                                      itemCount: regs.length,
+                                      separatorBuilder: (_, __) =>
+                                          const Divider(height: 1),
+                                      itemBuilder: (_, index) {
+                                        final reg = regs[index];
+                                        final id = (reg['id'] as num).toInt();
+                                        final flags = _flagsFor(reg, shift);
+                                        final controller =
+                                            approvedControllers[id]!;
+                                        return _approvalRow(
+                                          registration: reg,
+                                          shift: shift,
+                                          flags: flags,
+                                          controller: controller,
+                                          locked: isLocked,
+                                          onApprove: () async {
+                                            final hours = double.tryParse(
+                                                controller.text
+                                                    .trim()
+                                                    .replaceAll(',', '.'));
+                                            final notes = flags.isEmpty
+                                                ? null
+                                                : await _askAdminNote(
+                                                    dialogContext);
+                                            if (flags.isNotEmpty &&
+                                                (notes == null ||
+                                                    notes.trim().isEmpty)) {
+                                              return;
+                                            }
+                                            try {
+                                              await _api.approveRegistration(id,
+                                                  hours: hours, notes: notes);
+                                              await refresh(setS);
+                                            } catch (e) {
+                                              _showError();
+                                            }
+                                          },
+                                          onReject: () async {
+                                            final reason =
+                                                await _askRejectReason(
+                                                    dialogContext);
+                                            if (reason == null) return;
+                                            try {
+                                              await _api.rejectRegistration(id,
+                                                  reason: reason);
+                                              await refresh(setS);
+                                            } catch (e) {
+                                              _showError();
+                                            }
+                                          },
+                                        );
                                       },
-                                      onReject: () async {
-                                        final reason = await _askRejectReason(
-                                            dialogContext);
-                                        if (reason == null) return;
-                                        try {
-                                          await _api.rejectRegistration(id,
-                                              reason: reason);
-                                          await refresh(setS);
-                                        } catch (e) {
-                                          _showError();
-                                        }
-                                      },
-                                    );
-                                  },
+                                    ),
+                                  ),
                                 ),
                         ),
                         const SizedBox(height: 12),
                         Row(children: [
                           if (flagged > 0)
                             const Text(
-                                'Flagged hours require an admin note before approval.',
+                                'Sati označeni za provjeru traže admin napomenu prije odobrenja.',
                                 style: TextStyle(color: Colors.red)),
                           const Spacer(),
                           OutlinedButton(
                               onPressed: () => Navigator.pop(dialogContext),
-                              child: const Text('Cancel')),
+                              child: const Text('Odustani')),
                           const SizedBox(width: 8),
                           OutlinedButton.icon(
                             icon: const Icon(Icons.done_all, size: 18),
@@ -594,7 +611,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                                     }
                                   }
                                 : null,
-                            label: const Text('Approve Clean'),
+                            label: const Text('Odobri uredne'),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton.icon(
@@ -620,7 +637,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                                     }
                                   }
                                 : null,
-                            label: const Text('Final Approval'),
+                            label: const Text('Finalno odobri'),
                           ),
                         ]),
                       ]),
@@ -640,28 +657,30 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
       child: const Row(children: [
         Expanded(
             flex: 2,
-            child: Text('Volunteer',
-                style: TextStyle(fontWeight: FontWeight.w700))),
-        Expanded(
-            child:
-                Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
-        Expanded(
-            child: Text('Check In/Out',
-                style: TextStyle(fontWeight: FontWeight.w700))),
-        Expanded(
-            child: Text('Reported',
-                style: TextStyle(fontWeight: FontWeight.w700))),
-        Expanded(
-            child: Text('Approved',
+            child: Text('Volonter',
                 style: TextStyle(fontWeight: FontWeight.w700))),
         Expanded(
             flex: 2,
             child:
-                Text('Flags', style: TextStyle(fontWeight: FontWeight.w700))),
+                Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
+        Expanded(
+            flex: 2,
+            child: Text('Prijava/Odjava',
+                style: TextStyle(fontWeight: FontWeight.w700))),
+        Expanded(
+            child: Text('Prijavljeno',
+                style: TextStyle(fontWeight: FontWeight.w700))),
+        Expanded(
+            child: Text('Odobreno',
+                style: TextStyle(fontWeight: FontWeight.w700))),
+        Expanded(
+            flex: 2,
+            child: Text('Provjere',
+                style: TextStyle(fontWeight: FontWeight.w700))),
         SizedBox(
             width: 150,
             child:
-                Text('Actions', style: TextStyle(fontWeight: FontWeight.w700))),
+                Text('Akcije', style: TextStyle(fontWeight: FontWeight.w700))),
       ]),
     );
   }
@@ -676,7 +695,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
     required Future<void> Function() onReject,
   }) {
     final status = (registration['status'] ?? '').toString();
-    final canEdit = !locked && status != 'Approved' && status != 'Rejected';
+    final canEdit = !locked;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(children: [
@@ -689,19 +708,19 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                        registration['userName'] ??
-                            'Nepoznat volonter',
+                    Text(registration['userName'] ?? 'Nepoznat volonter',
                         style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Text(registration['userEmail']?.toString() ?? 'Email nije dostupan',
+                    Text(
+                        registration['userEmail']?.toString() ??
+                            'Email nije dostupan',
                         style: TextStyle(
                             fontSize: 11, color: Colors.grey.shade600)),
                   ]),
             ),
           ]),
         ),
-        Expanded(child: _statusBadge(status)),
-        Expanded(child: Text(_checkRange(registration))),
+        Expanded(flex: 2, child: _statusBadge(status)),
+        Expanded(flex: 2, child: Text(_checkRange(registration))),
         Expanded(
             child: Text(
                 '${_hours(registration['hoursWorked']).toStringAsFixed(1)} h')),
@@ -720,7 +739,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
         Expanded(
           flex: 2,
           child: Wrap(spacing: 6, runSpacing: 4, children: [
-            if (flags.isEmpty) _pill('Clean', Colors.blueGrey),
+            if (flags.isEmpty) _pill('Uredno', Colors.blueGrey),
             ...flags.map((f) => _pill(f.label, f.color, icon: f.icon)),
           ]),
         ),
@@ -729,12 +748,12 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
           child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             IconButton(
               onPressed: canEdit ? onApprove : null,
-              tooltip: 'Approve hours',
+              tooltip: 'Odobri sate',
               icon: const Icon(Icons.check_circle, color: Colors.green),
             ),
             IconButton(
               onPressed: canEdit ? onReject : null,
-              tooltip: 'Reject hours',
+              tooltip: 'Odbij sate',
               icon: const Icon(Icons.cancel, color: Colors.red),
             ),
           ]),
@@ -783,6 +802,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
       ]);
 
   Widget _pill(String label, Color color, {IconData? icon}) => Container(
+        constraints: const BoxConstraints(maxWidth: 150),
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
@@ -795,8 +815,10 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
             const SizedBox(width: 4),
           ],
           Text(label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+                  color: color, fontSize: 11, fontWeight: FontWeight.w700)),
         ]),
       );
 
@@ -866,19 +888,20 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Admin note required'),
+        title: const Text('Potrebna je admin napomena'),
         content: TextField(
           controller: note,
           maxLines: 3,
           decoration: const InputDecoration(
-              labelText: 'Reason for approving flagged hours'),
+              labelText: 'Razlog odobrenja označenih sati'),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Odustani')),
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx, note.text.trim()),
-              child: const Text('Save note')),
+              child: const Text('Spremi napomenu')),
         ],
       ),
     );
@@ -889,18 +912,19 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Reject hours'),
+        title: const Text('Odbij sate'),
         content: TextField(
           controller: reason,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Reason'),
+          decoration: const InputDecoration(labelText: 'Razlog'),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Odustani')),
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx, reason.text.trim()),
-              child: const Text('Reject')),
+              child: const Text('Odbij')),
         ],
       ),
     );
@@ -910,16 +934,16 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Final approval'),
+        title: const Text('Finalno odobrenje'),
         content: const Text(
-            'After final approval, volunteer hour data can no longer be changed. Continue?'),
+            'Nakon finalnog odobrenja sati volontera se više ne mogu mijenjati. Nastaviti?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: const Text('Odustani')),
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Lock shift')),
+              child: const Text('Zaključaj smjenu')),
         ],
       ),
     );
@@ -929,23 +953,23 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
       Map<String, dynamic> registration, Map<String, dynamic> shift) {
     final flags = <_HourFlag>[];
     if (registration['isSuspicious'] == true) {
-      flags
-          .add(const _HourFlag('System Flag', Icons.warning_amber, Colors.red));
+      flags.add(const _HourFlag(
+          'Sistemska provjera', Icons.warning_amber, Colors.red));
     }
     final reported = _hours(registration['hoursWorked']);
     final shiftHours = _shiftHours(shift);
     if (reported <= 0 && registration['checkInTime'] != null) {
       flags.add(
-          const _HourFlag('Missing Hours', Icons.error_outline, Colors.red));
+          const _HourFlag('Nedostaju sati', Icons.error_outline, Colors.red));
     }
     if (shiftHours > 0 && reported > shiftHours + 0.5) {
       flags.add(
-          const _HourFlag('Excessive Hours', Icons.priority_high, Colors.red));
+          const _HourFlag('Previše sati', Icons.priority_high, Colors.red));
     }
     final actual = _actualHours(registration);
     if (actual != null && (reported - actual).abs() > 0.25) {
-      flags.add(
-          const _HourFlag('Time Mismatch', Icons.sync_problem, Colors.orange));
+      flags.add(const _HourFlag(
+          'Vrijeme se ne slaže', Icons.sync_problem, Colors.orange));
     }
     return flags;
   }
@@ -961,12 +985,12 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
   }
 
   String _shiftStatusLabel(Map<String, dynamic> shift) {
-    if (shift['isLocked'] == true) return 'Fully Approved';
+    if (shift['isLocked'] == true) return 'Finalno odobrena';
     final end = DateTime.tryParse(shift['endTime']?.toString() ?? '');
     if (end != null && DateTime.now().toUtc().isAfter(end.toUtc())) {
-      return 'Awaiting Hours';
+      return 'Čeka sate';
     }
-    return 'Upcoming';
+    return 'Nadolazeća';
   }
 
   Color _registrationStatusColor(String status) {
@@ -989,17 +1013,17 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
   String _registrationStatusLabel(String status) {
     switch (status) {
       case 'Approved':
-        return 'Approved';
+        return 'Odobreno';
       case 'Rejected':
-        return 'Rejected';
+        return 'Odbijeno';
       case 'Completed':
-        return 'Awaiting Approval';
+        return 'Čeka odobrenje';
       case 'Registered':
-        return 'Registered';
+        return 'Registrovan';
       case 'Cancelled':
-        return 'Cancelled';
+        return 'Otkazano';
       default:
-        return status.isEmpty ? 'Pending' : status;
+        return status.isEmpty ? 'Na čekanju' : status;
     }
   }
 
@@ -1020,7 +1044,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
   String _checkRange(Map<String, dynamic> registration) {
     final checkIn = _fmtTime(registration['checkInTime']);
     final checkOut = _fmtTime(registration['checkOutTime']);
-    if (checkIn == '-' && checkOut == '-') return 'Not checked in';
+    if (checkIn == '-' && checkOut == '-') return 'Nije prijavljen';
     return '$checkIn - $checkOut';
   }
 

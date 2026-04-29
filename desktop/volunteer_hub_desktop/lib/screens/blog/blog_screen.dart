@@ -79,6 +79,16 @@ class _BlogScreenState extends State<BlogScreen> {
                         ),
                         trailing:
                             Row(mainAxisSize: MainAxisSize.min, children: [
+                          if (published &&
+                              (p['imageUrl'] ?? '')
+                                  .toString()
+                                  .trim()
+                                  .isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.image, size: 20),
+                              tooltip: 'Pregled slike objave',
+                              onPressed: () => _showPostImagePreview(p),
+                            ),
                           IconButton(
                             icon: const Icon(Icons.visibility, size: 20),
                             tooltip: 'Pregled',
@@ -132,6 +142,8 @@ class _BlogScreenState extends State<BlogScreen> {
                         v == null || v.isEmpty ? 'Naslov je obavezan' : null,
                   ),
                   const SizedBox(height: 12),
+                  _editorToolbar(content),
+                  const SizedBox(height: 8),
                   TextFormField(
                     controller: content,
                     decoration: const InputDecoration(
@@ -253,6 +265,100 @@ class _BlogScreenState extends State<BlogScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx), child: const Text('Zatvori'))
+        ],
+      ),
+    );
+  }
+
+  Widget _editorToolbar(TextEditingController controller) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(children: [
+        IconButton(
+          tooltip: 'Bold',
+          icon: const Icon(Icons.format_bold),
+          onPressed: () => _wrapSelection(controller, '**', '**'),
+        ),
+        IconButton(
+          tooltip: 'Italic',
+          icon: const Icon(Icons.format_italic),
+          onPressed: () => _wrapSelection(controller, '_', '_'),
+        ),
+        IconButton(
+          tooltip: 'Naslov',
+          icon: const Icon(Icons.title),
+          onPressed: () => _insertPrefix(controller, '## '),
+        ),
+        IconButton(
+          tooltip: 'Lista',
+          icon: const Icon(Icons.format_list_bulleted),
+          onPressed: () => _insertPrefix(controller, '- '),
+        ),
+        IconButton(
+          tooltip: 'Citat',
+          icon: const Icon(Icons.format_quote),
+          onPressed: () => _insertPrefix(controller, '> '),
+        ),
+      ]),
+    );
+  }
+
+  void _wrapSelection(
+      TextEditingController controller, String before, String after) {
+    final selection = controller.selection;
+    final text = controller.text;
+    if (!selection.isValid || selection.isCollapsed) {
+      final offset = selection.isValid ? selection.baseOffset : text.length;
+      controller.text = text.replaceRange(offset, offset, '$before$after');
+      controller.selection =
+          TextSelection.collapsed(offset: offset + before.length);
+      return;
+    }
+    final selected = text.substring(selection.start, selection.end);
+    controller.text = text.replaceRange(
+        selection.start, selection.end, '$before$selected$after');
+    controller.selection = TextSelection(
+      baseOffset: selection.start + before.length,
+      extentOffset: selection.end + before.length,
+    );
+  }
+
+  void _insertPrefix(TextEditingController controller, String prefix) {
+    final selection = controller.selection;
+    final text = controller.text;
+    final offset = selection.isValid ? selection.baseOffset : text.length;
+    final lineStart = text.lastIndexOf('\n', offset - 1) + 1;
+    controller.text = text.replaceRange(lineStart, lineStart, prefix);
+    controller.selection =
+        TextSelection.collapsed(offset: offset + prefix.length);
+  }
+
+  void _showPostImagePreview(Map<String, dynamic> post) {
+    final url = (post['imageUrl'] ?? '').toString().trim();
+    if (url.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(post['title'] ?? 'Pregled slike'),
+        content: SizedBox(
+          width: 560,
+          height: 360,
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) =>
+                const Center(child: Text('Slika se ne može učitati.')),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Zatvori')),
         ],
       ),
     );

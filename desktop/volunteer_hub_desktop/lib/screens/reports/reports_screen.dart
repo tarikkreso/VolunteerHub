@@ -7,7 +7,8 @@ import 'package:printing/printing.dart';
 import '../../services/api_service.dart';
 
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({super.key});
+  final String? initialReport;
+  const ReportsScreen({super.key, this.initialReport});
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
@@ -27,6 +28,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialReport != null) {
+      _selectedReport = widget.initialReport!;
+    }
     _load();
   }
 
@@ -180,23 +184,35 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildMetrics() {
+    final volunteers = _num(_stats['totalVolunteers']);
+    final events = _num(_stats['totalEvents']);
+    final shifts = _num(_stats['totalShifts']);
+    final hours = _num(_stats['totalHours']);
+    final donations = _num(_stats['totalDonations']);
+    final activeVolunteers =
+        _leaderboard.where((e) => _num(e['totalHours']) > 0).length;
+    final avgHours = activeVolunteers == 0 ? 0 : hours / activeVolunteers;
+    final avgShifts = events == 0 ? 0 : shifts / events;
+    final avgDonationPerCampaign = (_num(_stats['activeCampaigns']) == 0)
+        ? 0
+        : donations / _num(_stats['activeCampaigns']);
     return Wrap(
       spacing: 14,
       runSpacing: 14,
       children: [
-        _card('Ukupno dogadjaja', '${_stats['totalEvents'] ?? 0}', Icons.event,
-            Colors.blue),
-        _card('Ukupno volontera', '${_stats['totalVolunteers'] ?? 0}',
-            Icons.people, Colors.green),
-        _card('Ukupno smjena', '${_stats['totalShifts'] ?? 0}', Icons.schedule,
-            Colors.orange),
-        _card('Ukupno sati', _num(_stats['totalHours']).toStringAsFixed(1),
-            Icons.timer, Colors.purple),
+        _card('Događaji', '${events.toInt()}', Icons.event, Colors.blue),
+        _card('Volonteri', '${volunteers.toInt()}', Icons.people, Colors.green),
+        _card('Smjene po događaju', avgShifts.toStringAsFixed(1),
+            Icons.schedule, Colors.orange),
+        _card('Prosjek sati/aktivni', avgHours.toStringAsFixed(1), Icons.timer,
+            Colors.purple),
+        _card('Aktivni volonteri', '$activeVolunteers',
+            Icons.volunteer_activism, Colors.indigo),
         _card('Aktivne kampanje', '${_stats['activeCampaigns'] ?? 0}',
             Icons.campaign, Colors.teal),
         _card(
-            'Ukupne donacije',
-            '${_num(_stats['totalDonations']).toStringAsFixed(2)} KM',
+            'Donacije po kampanji',
+            '${avgDonationPerCampaign.toStringAsFixed(2)} KM',
             Icons.monetization_on,
             Colors.amber.shade700),
       ],
@@ -218,77 +234,277 @@ class _ReportsScreenState extends State<ReportsScreen> {
       final v = _num(e['totalHours']);
       return v > m ? v : m;
     });
+    final totalHours = _num(_stats['totalHours']);
+    final activeHours = _leaderboard
+        .where((e) => _num(e['totalHours']) > 0)
+        .fold<double>(0, (sum, e) => sum + _num(e['totalHours']));
+    final ratioHours = totalHours <= 0
+        ? 0.0
+        : (activeHours / totalHours).clamp(0.0, 1.0).toDouble();
+    final approved = _reportRows.fold<double>(0,
+        (s, r) => s + _num(r['approvedShifts'] ?? r['approvedRegistrations']));
+    final rejected = _reportRows.fold<double>(
+        0, (s, r) => s + _num(r['rejectedShifts'] ?? 0));
+    final pending = (_reportRows.fold<double>(
+                0,
+                (s, r) =>
+                    s + _num(r['shiftCount'] ?? r['totalRegistrations'])) -
+            approved -
+            rejected)
+        .clamp(0, double.infinity)
+        .toDouble();
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Top volonteri po satima',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 250,
-                    child: BarChart(
-                      BarChartData(
-                        maxY: maxY <= 0 ? 10 : maxY * 1.2,
-                        barGroups: List.generate(
-                          chart.length,
-                          (i) => BarChartGroupData(
-                            x: i,
-                            barRods: [
-                              BarChartRodData(
-                                toY: _num(chart[i]['totalHours']),
-                                width: 18,
-                                color: Colors.blue,
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(4),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Top volonteri po satima',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 250,
+                        child: BarChart(
+                          BarChartData(
+                            maxY: maxY <= 0 ? 10 : maxY * 1.2,
+                            barGroups: List.generate(
+                              chart.length,
+                              (i) => BarChartGroupData(
+                                x: i,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: _num(chart[i]['totalHours']),
+                                    width: 18,
+                                    color: Colors.blue,
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(4),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            titlesData: FlTitlesData(
+                              topTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (v, meta) {
+                                    final i = v.toInt();
+                                    if (i < 0 || i >= chart.length) {
+                                      return const SizedBox();
+                                    }
+                                    final name = (chart[i]['userName'] ?? '')
+                                        .toString()
+                                        .split(' ')
+                                        .first;
+                                    return SideTitleWidget(
+                                      axisSide: meta.axisSide,
+                                      child: Text(name,
+                                          style: const TextStyle(fontSize: 11)),
+                                    );
+                                  },
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                        titlesData: FlTitlesData(
-                          topTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (v, meta) {
-                                final i = v.toInt();
-                                if (i < 0 || i >= chart.length) {
-                                  return const SizedBox();
-                                }
-                                final name = (chart[i]['userName'] ?? '')
-                                    .toString()
-                                    .split(' ')
-                                    .first;
-                                return SideTitleWidget(
-                                  axisSide: meta.axisSide,
-                                  child: Text(name,
-                                      style: const TextStyle(fontSize: 11)),
-                                );
-                              },
                             ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Aktivni vs neaktivni sati',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 230,
+                        child: PieChart(
+                          PieChartData(
+                            centerSpaceRadius: 48,
+                            sectionsSpace: 2,
+                            sections: [
+                              PieChartSectionData(
+                                value: (ratioHours * 100),
+                                title:
+                                    '${(ratioHours * 100).toStringAsFixed(0)}%',
+                                color: Colors.green,
+                                radius: 54,
+                                titleStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              PieChartSectionData(
+                                value: ((1 - ratioHours) * 100),
+                                title:
+                                    '${((1 - ratioHours) * 100).toStringAsFixed(0)}%',
+                                color: Colors.grey.shade400,
+                                radius: 50,
+                                titleStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _chartLegend('Aktivni sati', Colors.green),
+                      _chartLegend('Neaktivni sati', Colors.grey.shade400),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Status odobrenja',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 210,
+                        child: PieChart(
+                          PieChartData(
+                            sectionsSpace: 2,
+                            centerSpaceRadius: 38,
+                            sections: [
+                              _pieSection('Odobreno', approved, Colors.green),
+                              _pieSection('Odbijeno', rejected, Colors.red),
+                              _pieSection('Na čekanju', pending, Colors.orange),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Trend top 6 volontera',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 210,
+                        child: LineChart(
+                          LineChartData(
+                            minY: 0,
+                            maxY: maxY <= 0 ? 10 : maxY * 1.15,
+                            gridData: FlGridData(
+                                show: true,
+                                horizontalInterval:
+                                    (maxY <= 0 ? 10 : maxY) / 4),
+                            titlesData: const FlTitlesData(
+                              topTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                            ),
+                            lineBarsData: [
+                              LineChartBarData(
+                                spots: List.generate(
+                                  chart.length.clamp(0, 6),
+                                  (i) => FlSpot(i.toDouble(),
+                                      _num(chart[i]['totalHours'])),
+                                ),
+                                isCurved: true,
+                                color: Colors.indigo,
+                                barWidth: 3,
+                                dotData: const FlDotData(show: true),
+                                belowBarData: BarAreaData(
+                                    show: true,
+                                    color:
+                                        Colors.indigo.withValues(alpha: 0.12)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
+    );
+  }
+
+  PieChartSectionData _pieSection(String label, double value, Color color) {
+    final safeValue = value <= 0 ? 0.0001 : value;
+    return PieChartSectionData(
+      value: safeValue,
+      color: color,
+      radius: 52,
+      title: '$label\n${value.toStringAsFixed(0)}',
+      titleStyle: const TextStyle(
+          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+    );
+  }
+
+  Widget _chartLegend(String label, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 11,
+            height: 11,
+            decoration: BoxDecoration(
+                color: color, borderRadius: BorderRadius.circular(2)),
+          ),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
     );
   }
 

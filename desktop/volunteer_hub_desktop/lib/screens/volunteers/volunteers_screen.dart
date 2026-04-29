@@ -23,11 +23,13 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await _api.getUsers(query: {'search': _searchCtrl.text, 'pageSize': 100});
+      final res = await _api
+          .getUsers(query: {'search': _searchCtrl.text, 'pageSize': 100});
       final d = res.data;
-        final allUsers = d is Map ? (d['items'] ?? []) : (d is List ? d : []);
-        _users = (allUsers as List)
-          .where((u) => (u['role'] ?? '').toString().toLowerCase() == 'volunteer')
+      final allUsers = d is Map ? (d['items'] ?? []) : (d is List ? d : []);
+      _users = (allUsers as List)
+          .where(
+              (u) => (u['role'] ?? '').toString().toLowerCase() == 'volunteer')
           .toList();
     } catch (e) {
       debugPrint('Volunteers error: $e');
@@ -61,7 +63,8 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
         Row(children: [
           _miniStat(Icons.people, 'Ukupno: ${_users.length}', Colors.blueGrey),
           const SizedBox(width: 12),
-          _miniStat(Icons.volunteer_activism, 'Aktivni volonteri: ${_users.length}', Colors.green),
+          _miniStat(Icons.volunteer_activism,
+              'Aktivni volonteri: ${_users.length}', Colors.green),
         ]),
         const SizedBox(height: 16),
         // List
@@ -78,17 +81,27 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: _userAvatar(u),
-                            title: Text('${u['firstName'] ?? ''} ${u['lastName'] ?? ''}'.trim()),
+                            title: Text(
+                                '${u['firstName'] ?? ''} ${u['lastName'] ?? ''}'
+                                    .trim()),
                             subtitle: Text('${u['email'] ?? ''}'),
-                            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                              _stat(Icons.timer, '${u['totalHours']?.toStringAsFixed(1) ?? '0'} h'),
+                            trailing:
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                              _stat(Icons.timer,
+                                  '${u['totalHours']?.toStringAsFixed(1) ?? '0'} h'),
                               const SizedBox(width: 12),
-                              _stat(Icons.event, '${u['totalEvents'] ?? 0} događaja'),
+                              _stat(Icons.event,
+                                  '${u['totalEvents'] ?? 0} događaja'),
                               const SizedBox(width: 12),
                               IconButton(
                                 icon: const Icon(Icons.info_outline),
                                 tooltip: 'Detalji',
                                 onPressed: () => _showDetails(u),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit),
+                                tooltip: 'Uredi volontera',
+                                onPressed: () => _showEditVolunteerDialog(u),
                               ),
                             ]),
                           ),
@@ -102,20 +115,28 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
 
   Widget _userAvatar(Map<String, dynamic> u) {
     final url = u['profileImageUrl'] as String?;
-    final initials = '${_initial(u['firstName'], fallback: 'V')}${_initial(u['lastName'])}'.toUpperCase();
+    final initials =
+        '${_initial(u['firstName'], fallback: 'V')}${_initial(u['lastName'])}'
+            .toUpperCase();
     if (url != null && url.isNotEmpty) {
-      return CircleAvatar(backgroundImage: NetworkImage(url), onBackgroundImageError: (_, __) {});
+      return CircleAvatar(
+          backgroundImage: NetworkImage(url),
+          onBackgroundImageError: (_, __) {});
     }
     return CircleAvatar(child: Text(initials));
   }
 
   Widget _miniStat(IconData icon, String label, Color c) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(
+            color: c.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 18, color: c),
           const SizedBox(width: 8),
-          Text(label, style: TextStyle(color: c, fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(label,
+              style: TextStyle(
+                  color: c, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
       );
 
@@ -125,6 +146,143 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
       const SizedBox(width: 4),
       Text(label, style: const TextStyle(fontSize: 13)),
     ]);
+  }
+
+  void _showEditVolunteerDialog(Map<String, dynamic> user) {
+    final firstNameCtrl =
+        TextEditingController(text: (user['firstName'] ?? '').toString());
+    final lastNameCtrl =
+        TextEditingController(text: (user['lastName'] ?? '').toString());
+    final emailCtrl =
+        TextEditingController(text: (user['email'] ?? '').toString());
+    final phoneCtrl = TextEditingController(
+        text: (user['phone'] ?? user['phoneNumber'] ?? '').toString());
+    final bioCtrl = TextEditingController(text: (user['bio'] ?? '').toString());
+    final imageCtrl =
+        TextEditingController(text: (user['profileImageUrl'] ?? '').toString());
+    bool isActive = user['isActive'] != false;
+    final formKey = GlobalKey<FormState>();
+    bool saving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('Uredi volontera'),
+          content: SizedBox(
+            width: 520,
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  TextFormField(
+                    controller: firstNameCtrl,
+                    decoration: const InputDecoration(labelText: 'Ime *'),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Unesite ime' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: lastNameCtrl,
+                    decoration: const InputDecoration(labelText: 'Prezime *'),
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Unesite prezime'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: emailCtrl,
+                    decoration: const InputDecoration(labelText: 'Email *'),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) {
+                      final text = (v ?? '').trim();
+                      if (text.isEmpty) return 'Unesite email adresu';
+                      return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                              .hasMatch(text)
+                          ? null
+                          : 'Unesite ispravnu email adresu';
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: phoneCtrl,
+                    decoration: const InputDecoration(labelText: 'Telefon'),
+                    validator: (v) {
+                      final text = (v ?? '').trim();
+                      if (text.isEmpty) return null;
+                      return RegExp(r'^\+?[0-9\-\s]{6,20}$').hasMatch(text)
+                          ? null
+                          : 'Unesite ispravan broj telefona';
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: imageCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'URL fotografije'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: bioCtrl,
+                    decoration: const InputDecoration(labelText: 'Biografija'),
+                    maxLines: 3,
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Aktivan nalog'),
+                    value: isActive,
+                    onChanged: (v) => setS(() => isActive = v),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Odustani')),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setS(() => saving = true);
+                      try {
+                        await _api.updateUser((user['id'] as num).toInt(), {
+                          'firstName': firstNameCtrl.text.trim(),
+                          'lastName': lastNameCtrl.text.trim(),
+                          'email': emailCtrl.text.trim(),
+                          'phone': phoneCtrl.text.trim(),
+                          'profileImageUrl': imageCtrl.text.trim(),
+                          'bio': bioCtrl.text.trim(),
+                          'isActive': isActive,
+                        });
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        await _load();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Podaci volontera su ažurirani.')),
+                          );
+                        }
+                      } catch (_) {
+                        setS(() => saving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Ažuriranje volontera nije uspjelo.')),
+                          );
+                        }
+                      }
+                    },
+              child: Text(saving ? 'Spremanje...' : 'Spremi'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showDetails(Map<String, dynamic> u) async {
@@ -146,7 +304,8 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, _) => AlertDialog(
           contentPadding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           content: SizedBox(
             width: 760,
             height: 620,
@@ -158,8 +317,12 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                 // ── Tabs ──
                 const TabBar(
                   tabs: [
-                    Tab(icon: Icon(Icons.person_outline, size: 18), text: 'Info'),
-                    Tab(icon: Icon(Icons.star_outline, size: 18), text: 'Vještine'),
+                    Tab(
+                        icon: Icon(Icons.person_outline, size: 18),
+                        text: 'Info'),
+                    Tab(
+                        icon: Icon(Icons.star_outline, size: 18),
+                        text: 'Vještine'),
                     Tab(icon: Icon(Icons.history, size: 18), text: 'Smjene'),
                   ],
                 ),
@@ -170,32 +333,53 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                       padding: const EdgeInsets.all(20),
                       child: Column(children: [
                         _detailCard([
-                          _detailTile(Icons.email_outlined, 'Email', u['email'] ?? '-'),
-                          _detailTile(Icons.phone_outlined, 'Telefon', u['phone'] ?? u['phoneNumber'] ?? '-'),
-                          _detailTile(Icons.location_city_outlined, 'Grad', u['cityName'] ?? '-'),
-                          _detailTile(Icons.badge_outlined, 'Uloga', u['role'] ?? '-'),
-                          _detailTile(Icons.calendar_today_outlined, 'Registracija', _fmtDate(u['createdAt'])),
+                          _detailTile(
+                              Icons.email_outlined, 'Email', u['email'] ?? '-'),
+                          _detailTile(Icons.phone_outlined, 'Telefon',
+                              u['phone'] ?? u['phoneNumber'] ?? '-'),
+                          _detailTile(Icons.location_city_outlined, 'Grad',
+                              u['cityName'] ?? '-'),
+                          _detailTile(
+                              Icons.badge_outlined, 'Uloga', u['role'] ?? '-'),
+                          _detailTile(Icons.calendar_today_outlined,
+                              'Registracija', _fmtDate(u['createdAt'])),
                         ]),
                         const SizedBox(height: 16),
                         Row(children: [
-                          _statCard(Icons.timer_outlined, '${u['totalHours']?.toStringAsFixed(1) ?? '0'}h', 'Ukupno sati', Colors.blue),
+                          _statCard(
+                              Icons.timer_outlined,
+                              '${u['totalHours']?.toStringAsFixed(1) ?? '0'}h',
+                              'Ukupno sati',
+                              Colors.blue),
                           const SizedBox(width: 12),
-                          _statCard(Icons.event_outlined, '${u['totalEvents'] ?? 0}', 'Događaja', Colors.green),
+                          _statCard(
+                              Icons.event_outlined,
+                              '${u['totalEvents'] ?? 0}',
+                              'Događaja',
+                              Colors.green),
                         ]),
                         if ((u['bio'] ?? '').toString().isNotEmpty) ...[
                           const SizedBox(height: 16),
                           _detailCard([
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Row(children: [
-                                  Icon(Icons.info_outline, size: 18, color: Colors.grey[600]),
-                                  const SizedBox(width: 10),
-                                  Text('O volonteru', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700])),
-                                ]),
-                                const SizedBox(height: 8),
-                                Text(u['bio'], style: const TextStyle(fontSize: 14, height: 1.5)),
-                              ]),
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(children: [
+                                      Icon(Icons.info_outline,
+                                          size: 18, color: Colors.grey[600]),
+                                      const SizedBox(width: 10),
+                                      Text('O volonteru',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[700])),
+                                    ]),
+                                    const SizedBox(height: 8),
+                                    Text(u['bio'],
+                                        style: const TextStyle(
+                                            fontSize: 14, height: 1.5)),
+                                  ]),
                             ),
                           ]),
                         ],
@@ -203,17 +387,22 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                     ),
                     // ── Skills tab ──
                     skills.isEmpty
-                        ? _emptyState(Icons.star_outline, 'Nema unesenih vještina')
+                        ? _emptyState(
+                            Icons.star_outline, 'Nema unesenih vještina')
                         : Padding(
                             padding: const EdgeInsets.all(20),
                             child: Wrap(
                               spacing: 8,
                               runSpacing: 8,
-                              children: skills.map<Widget>((s) => Chip(
-                                    avatar: const Icon(Icons.star, size: 16, color: Colors.amber),
-                                    label: Text(s['skillName'] ?? s['name'] ?? ''),
-                                    backgroundColor: Colors.amber.shade50,
-                                  )).toList(),
+                              children: skills
+                                  .map<Widget>((s) => Chip(
+                                        avatar: const Icon(Icons.star,
+                                            size: 16, color: Colors.amber),
+                                        label: Text(
+                                            s['skillName'] ?? s['name'] ?? ''),
+                                        backgroundColor: Colors.amber.shade50,
+                                      ))
+                                  .toList(),
                             ),
                           ),
                     // ── Shift history tab ──
@@ -235,25 +424,53 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                                 child: ListTile(
                                   leading: CircleAvatar(
                                     radius: 18,
-                                    backgroundColor: statusColor.withValues(alpha: 0.12),
+                                    backgroundColor:
+                                        statusColor.withValues(alpha: 0.12),
                                     child: Icon(
-                                      status == 'Approved' ? Icons.check_circle_outline : status == 'Rejected' ? Icons.cancel_outlined : Icons.hourglass_empty,
+                                      status == 'Approved'
+                                          ? Icons.check_circle_outline
+                                          : status == 'Rejected'
+                                              ? Icons.cancel_outlined
+                                              : Icons.hourglass_empty,
                                       size: 18,
                                       color: statusColor,
                                     ),
                                   ),
-                                  title: Text(h['shiftName'] ?? h['eventTitle'] ?? 'Smjena', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                                  subtitle: Text('${_fmtDate(h['shiftStartTime'] ?? h['createdAt'])}', style: const TextStyle(fontSize: 12)),
-                                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                                    if (h['hoursWorked'] != null)
-                                      Text('${(h['hoursWorked'] as num).toStringAsFixed(1)}h', style: TextStyle(fontWeight: FontWeight.bold, color: statusColor)),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                                      child: Text(status, style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),
-                                    ),
-                                  ]),
+                                  title: Text(
+                                      h['shiftName'] ??
+                                          h['eventTitle'] ??
+                                          'Smjena',
+                                      style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500)),
+                                  subtitle: Text(
+                                      '${_fmtDate(h['shiftStartTime'] ?? h['createdAt'])}',
+                                      style: const TextStyle(fontSize: 12)),
+                                  trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (h['hoursWorked'] != null)
+                                          Text(
+                                              '${(h['hoursWorked'] as num).toStringAsFixed(1)}h',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: statusColor)),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                              color: statusColor.withValues(
+                                                  alpha: 0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8)),
+                                          child: Text(status,
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: statusColor,
+                                                  fontWeight: FontWeight.w600)),
+                                        ),
+                                      ]),
                                 ),
                               );
                             },
@@ -264,7 +481,9 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Zatvori')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Zatvori')),
           ],
         ),
       ),
@@ -273,7 +492,9 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
 
   Widget _detailsHeader(Map<String, dynamic> u) {
     final imageUrl = u['profileImageUrl'] as String?;
-    final initials = '${_initial(u['firstName'], fallback: 'V')}${_initial(u['lastName'])}'.toUpperCase();
+    final initials =
+        '${_initial(u['firstName'], fallback: 'V')}${_initial(u['lastName'])}'
+            .toUpperCase();
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -286,30 +507,48 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
       child: Row(children: [
         Container(
-          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)),
+          decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3)),
           child: CircleAvatar(
             radius: 36,
             backgroundColor: Colors.white24,
-            backgroundImage: (imageUrl != null && imageUrl.isNotEmpty) ? NetworkImage(imageUrl) : null,
+            backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
+                ? NetworkImage(imageUrl)
+                : null,
             child: (imageUrl == null || imageUrl.isEmpty)
-                ? Text(initials, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white))
+                ? Text(initials,
+                    style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white))
                 : null,
           ),
         ),
         const SizedBox(width: 20),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('${u['firstName'] ?? ''} ${u['lastName'] ?? ''}'.trim(),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white)),
             const SizedBox(height: 4),
-            Text(u['email'] ?? '', style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13)),
+            Text(u['email'] ?? '',
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85), fontSize: 13)),
             if ((u['cityName'] ?? '').toString().isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Row(children: [
-                  Icon(Icons.location_on, size: 14, color: Colors.white.withValues(alpha: 0.75)),
+                  Icon(Icons.location_on,
+                      size: 14, color: Colors.white.withValues(alpha: 0.75)),
                   const SizedBox(width: 4),
-                  Text(u['cityName'], style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12)),
+                  Text(u['cityName'],
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontSize: 12)),
                 ]),
               ),
           ]),
@@ -320,10 +559,20 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
 
   Widget _detailCard(List<Widget> children) => Card(
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade200)),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(children: children.map((w) => w is Divider ? w : Column(children: [w, if (w != children.last) const Divider(height: 1)])).toList()),
+          child: Column(
+              children: children
+                  .map((w) => w is Divider
+                      ? w
+                      : Column(children: [
+                          w,
+                          if (w != children.last) const Divider(height: 1)
+                        ]))
+                  .toList()),
         ),
       );
 
@@ -334,20 +583,28 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
           const SizedBox(width: 12),
           Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
           const Spacer(),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+          Text(value,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
         ]),
       );
 
-  Widget _statCard(IconData icon, String value, String label, Color color) => Expanded(
+  Widget _statCard(IconData icon, String value, String label, Color color) =>
+      Expanded(
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(12)),
           child: Row(children: [
             Icon(icon, color: color, size: 28),
             const SizedBox(width: 12),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-              Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+              Text(label,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600])),
             ]),
           ]),
         ),
@@ -373,5 +630,4 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
     if (d == null) return v.toString();
     return DateFormat('dd.MM.yyyy HH:mm').format(d);
   }
-
 }

@@ -107,6 +107,13 @@ class ApiService {
   Future<Response> getUserStats(int id) =>
       _dio.get('${ApiConfig.users}/$id/stats');
 
+  Future<Response> uploadUserImage(String path) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(path),
+    });
+    return _dio.post('${ApiConfig.users}/upload-image', data: formData);
+  }
+
   // ── Campaigns ──
   Future<Response> getCampaigns({int pageSize = 20}) =>
       _dio.get(ApiConfig.campaigns, queryParameters: {'pageSize': pageSize});
@@ -132,6 +139,9 @@ class ApiService {
     }
     return _dio.get('${ApiConfig.donations}/recent');
   }
+
+  Future<Response> refundDonation(int id) =>
+      _dio.post('${ApiConfig.donations}/$id/refund');
 
   // ── Blog ──
   Future<Response> getBlogPosts() => _dio.get(ApiConfig.blogPosts);
@@ -201,8 +211,7 @@ class ApiService {
   Future<Response> updateCity(int id, Map<String, dynamic> data) =>
       _dio.put('${ApiConfig.cities}/$id', data: data);
 
-  Future<Response> deleteCity(int id) =>
-      _dio.delete('${ApiConfig.cities}/$id');
+  Future<Response> deleteCity(int id) => _dio.delete('${ApiConfig.cities}/$id');
 
   Future<Response> createSkill(Map<String, dynamic> data) =>
       _dio.post(ApiConfig.skills, data: data);

@@ -65,4 +65,34 @@ public class UsersController : ControllerBase
         var stats = await _userService.GetStatsAsync(id);
         return Ok(stats);
     }
+
+    [HttpPost("upload-image")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<object>> UploadImage(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Datoteka nije prilozena." });
+
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest(new { message = "Slika ne smije biti veca od 5 MB." });
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(ext))
+            return BadRequest(new { message = "Dozvoljeni formati: jpg, jpeg, png, webp, gif." });
+
+        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "users");
+        Directory.CreateDirectory(uploadsDir);
+
+        var fileName = $"{Guid.NewGuid()}{ext}";
+        var filePath = Path.Combine(uploadsDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var relativeUrl = $"/uploads/users/{fileName}";
+        return Ok(new { imageUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}" });
+    }
 }

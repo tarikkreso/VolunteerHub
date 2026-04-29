@@ -20,6 +20,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
+  int? _focusedEventId;
+  String? _reportsInitialReport;
   final ApiService _api = ApiService();
 
   final List<_NavItem> _navItems = [
@@ -152,9 +154,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     switch (_selectedIndex) {
       case 0:
         return _DashboardHome(
-            api: _api, onNavigate: (i) => setState(() => _selectedIndex = i));
+          api: _api,
+          onNavigate: (i) => setState(() => _selectedIndex = i),
+          onOpenEvent: (eventId) => setState(() {
+            _focusedEventId = eventId;
+            _selectedIndex = 1;
+          }),
+          onOpenReports: (report) => setState(() {
+            _reportsInitialReport = report;
+            _selectedIndex = 6;
+          }),
+        );
       case 1:
-        return const EventsScreen();
+        return EventsScreen(focusEventId: _focusedEventId);
       case 2:
         return const ShiftsScreen();
       case 3:
@@ -164,7 +176,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 5:
         return const BlogScreen();
       case 6:
-        return const ReportsScreen();
+        return ReportsScreen(initialReport: _reportsInitialReport);
       case 7:
         return const SkillsScreen();
       case 8:
@@ -184,7 +196,14 @@ class _NavItem {
 class _DashboardHome extends StatefulWidget {
   final ApiService api;
   final void Function(int index) onNavigate;
-  const _DashboardHome({required this.api, required this.onNavigate});
+  final void Function(int eventId) onOpenEvent;
+  final void Function(String report) onOpenReports;
+  const _DashboardHome({
+    required this.api,
+    required this.onNavigate,
+    required this.onOpenEvent,
+    required this.onOpenReports,
+  });
   @override
   State<_DashboardHome> createState() => _DashboardHomeState();
 }
@@ -194,7 +213,6 @@ class _DashboardHomeState extends State<_DashboardHome> {
   List<dynamic> _events = [];
   List<dynamic> _leaderboard = [];
   bool _loading = true;
-  DateTimeRange? _dateRange;
 
   @override
   void initState() {
@@ -206,10 +224,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
     setState(() => _loading = true);
     try {
       final res = await Future.wait([
-        widget.api.getDashboardStats(
-          startDate: _dateRange?.start,
-          endDate: _dateRange?.end,
-        ),
+        widget.api.getDashboardStats(),
         widget.api.getEvents(query: {'page': 1, 'pageSize': 5}),
         widget.api.getLeaderboard(top: 5),
       ]);
@@ -240,22 +255,6 @@ class _DashboardHomeState extends State<_DashboardHome> {
                   style: TextStyle(color: Colors.grey.shade600)),
             ]),
           ),
-          OutlinedButton.icon(
-            onPressed: _pickDateRange,
-            icon: const Icon(Icons.date_range),
-            label: Text(_rangeLabel),
-          ),
-          const SizedBox(width: 8),
-          if (_dateRange != null)
-            TextButton.icon(
-              onPressed: () {
-                setState(() => _dateRange = null);
-                _load();
-              },
-              icon: const Icon(Icons.clear),
-              label: const Text('Očisti period'),
-            ),
-          const Spacer(),
           IconButton(
             onPressed: _load,
             tooltip: 'Osvježi',
@@ -348,6 +347,10 @@ class _DashboardHomeState extends State<_DashboardHome> {
                             trailing: Text(_fmt(e['startDate']),
                                 style: const TextStyle(
                                     color: Colors.grey, fontSize: 12)),
+                            onTap: () {
+                              final id = e['id'];
+                              if (id is num) widget.onOpenEvent(id.toInt());
+                            },
                           )),
                     ]),
               ),
@@ -386,6 +389,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
                           trailing: Text('${_numFmt(v['totalHours'])}h',
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold)),
+                          onTap: () => widget.onOpenReports('HoursByVolunteer'),
                         );
                       }),
                     ]),
@@ -467,29 +471,5 @@ class _DashboardHomeState extends State<_DashboardHome> {
     if (v == null) return '0';
     if (v is num) return v.toStringAsFixed(1);
     return v.toString();
-  }
-
-  String get _rangeLabel {
-    if (_dateRange == null) return 'Odaberi period';
-    final s = _dateRange!.start;
-    final e = _dateRange!.end;
-    return '${s.day.toString().padLeft(2, '0')}.${s.month.toString().padLeft(2, '0')}.${s.year} - ${e.day.toString().padLeft(2, '0')}.${e.month.toString().padLeft(2, '0')}.${e.year}';
-  }
-
-  Future<void> _pickDateRange() async {
-    final now = DateTime.now();
-    final initial = _dateRange ??
-        DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now);
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2035),
-      initialDateRange: initial,
-    );
-
-    if (picked != null) {
-      setState(() => _dateRange = picked);
-      await _load();
-    }
   }
 }

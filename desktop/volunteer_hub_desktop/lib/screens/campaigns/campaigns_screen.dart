@@ -87,7 +87,10 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                               ? Colors.green
                               : Colors.grey,
                         ),
-                        title: Text(c['title'] ?? ''),
+                        title: Text(
+                          c['title'] ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
                         subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -123,7 +126,10 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                             child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(c['description'] ?? 'Nema opisa'),
+                                  Text(
+                                    c['description'] ?? 'Nema opisa',
+                                    style: const TextStyle(height: 1.45),
+                                  ),
                                   const SizedBox(height: 8),
                                   Text(
                                       'Status: ${_toBool(c['isActive']) ? 'Aktivna' : 'Neaktivna'}'),
@@ -200,14 +206,17 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
             ElevatedButton(
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
-                final now = DateTime.now().toUtc().toIso8601String();
+                final now = DateTime.now().toUtc();
+                final defaultEnd =
+                    now.add(const Duration(days: 30)).toIso8601String();
                 final data = {
                   'title': title.text.trim(),
                   'description': desc.text.trim(),
                   'goalAmount': double.parse(goal.text.trim()),
-                  'startDate':
-                      _normalizeCampaignDate(existing?['startDate'], now),
-                  'endDate': _normalizeCampaignDate(existing?['endDate'], now),
+                  'startDate': _normalizeCampaignDate(
+                      existing?['startDate'], now.toIso8601String()),
+                  'endDate':
+                      _normalizeCampaignDate(existing?['endDate'], defaultEnd),
                   'imageUrl': existing?['imageUrl'],
                   'isActive': isActive,
                 };
@@ -311,12 +320,23 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                               : d['donorName'] ?? 'Anonimni donator'),
                           subtitle: Text(
                               '${(d['amount'] as num?)?.toStringAsFixed(2) ?? '0'} KM • ${_fmtDate(d['createdAt'])}'),
-                          trailing: d['message'] != null && d['message'] != ''
-                              ? Tooltip(
-                                  message: d['message'],
-                                  child: const Icon(Icons.chat_bubble_outline,
-                                      size: 18))
-                              : null,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (d['message'] != null && d['message'] != '')
+                                Tooltip(
+                                    message: d['message'],
+                                    child: const Icon(Icons.chat_bubble_outline,
+                                        size: 18)),
+                              IconButton(
+                                tooltip: 'Refundiraj donaciju',
+                                icon: const Icon(Icons.undo, size: 18),
+                                onPressed: d['status'] == 'Refunded'
+                                    ? null
+                                    : () => _refundDonation(ctx, d),
+                              ),
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -327,6 +347,44 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _refundDonation(
+      BuildContext dialogContext, Map<String, dynamic> donation) async {
+    final amount = (donation['amount'] as num?)?.toStringAsFixed(2) ?? '0.00';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Refundacija donacije'),
+        content: Text('Refundirati donaciju u iznosu od $amount KM?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Odustani')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Refundiraj')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await _api.refundDonation((donation['id'] as num).toInt());
+      if (dialogContext.mounted) Navigator.pop(dialogContext);
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Donacija je refundirana.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_extractErrorMessage(e))),
+        );
+      }
+    }
   }
 
   double _totalRaised() => _campaigns.fold(
