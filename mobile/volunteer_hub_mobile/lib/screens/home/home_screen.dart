@@ -4,7 +4,6 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../blog/blog_post_detail_screen.dart';
 import '../blog/blog_tab.dart';
-import '../donations/campaign_detail_screen.dart';
 import '../donations/donations_tab.dart';
 import '../events/event_detail_screen.dart';
 import '../events/events_tab.dart';
@@ -14,17 +13,30 @@ import '../profile/profile_tab.dart';
 import '../shifts/shifts_tab.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int initialTab;
+  final int? initialCampaignId;
+
+  const HomeScreen({super.key, this.initialTab = 0, this.initialCampaignId});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   final _shiftsRefreshTrigger = ValueNotifier<int>(0);
+  int? _focusedCampaignId;
+  int _donationsFocusVersion = 0;
 
   final _titles = ['Početna', 'Događaji', 'Smjene', 'Donacije', 'Profil'];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialTab;
+    _focusedCampaignId = widget.initialCampaignId;
+    if (_focusedCampaignId != null) _donationsFocusVersion = 1;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +65,11 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _HomeTab(
             onNav: (i) => setState(() => _currentIndex = i),
+            onOpenCampaign: (campaignId) => setState(() {
+              _focusedCampaignId = campaignId;
+              _donationsFocusVersion++;
+              _currentIndex = 3;
+            }),
             onOpenBlog: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => Scaffold(
                   appBar: AppBar(title: const Text('Blog')),
@@ -60,7 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           EventsTab(onNavigateToShifts: () { setState(() => _currentIndex = 2); _shiftsRefreshTrigger.value++; }),
           ShiftsTab(refreshTrigger: _shiftsRefreshTrigger),
-          const DonationsTab(),
+          DonationsTab(
+            focusCampaignId: _focusedCampaignId,
+            focusVersion: _donationsFocusVersion,
+          ),
           const ProfileTab(),
         ],
       ),
@@ -181,8 +201,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _HomeTab extends StatefulWidget {
   final void Function(int) onNav;
+  final void Function(int campaignId) onOpenCampaign;
   final VoidCallback onOpenBlog;
-  const _HomeTab({required this.onNav, required this.onOpenBlog});
+  const _HomeTab({
+    required this.onNav,
+    required this.onOpenCampaign,
+    required this.onOpenBlog,
+  });
   @override
   State<_HomeTab> createState() => _HomeTabState();
 }
@@ -344,14 +369,9 @@ class _HomeTabState extends State<_HomeTab> {
               ..._blogPosts.take(2).map((p) => Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      leading: Container(
-                        width: 48, height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.purple.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.article, color: Colors.purple),
-                      ),
+                      leading: _blogThumb(p is Map<String, dynamic>
+                          ? p
+                          : Map<String, dynamic>.from(p as Map)),
                       title: Text(p['title'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
                       subtitle: Text('~${p['readingTime'] ?? 3} min čitanja', style: const TextStyle(fontSize: 12)),
                       trailing: const Icon(Icons.chevron_right),
@@ -477,8 +497,12 @@ class _HomeTabState extends State<_HomeTab> {
     final raised = (c['currentAmount'] ?? c['raisedAmount'] ?? 0).toDouble();
     final pct = goal > 0 ? (raised / goal).clamp(0.0, 1.0) : 0.0;
     final campaignMap = c is Map<String, dynamic> ? c : Map<String, dynamic>.from(c as Map);
+    final imageUrl = _imageUrl(campaignMap);
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CampaignDetailScreen(campaign: campaignMap))),
+      onTap: () {
+        final id = campaignMap['id'];
+        if (id is num) widget.onOpenCampaign(id.toInt());
+      },
       child: Container(
       width: 200,
       margin: const EdgeInsets.only(right: 12),
@@ -486,7 +510,32 @@ class _HomeTabState extends State<_HomeTab> {
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            Text(c['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Row(children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  color: Colors.pink.withValues(alpha: 0.1),
+                  child: imageUrl != null
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.favorite, color: Colors.pink),
+                        )
+                      : const Icon(Icons.favorite, color: Colors.pink),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(c['title'] ?? '',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ]),
             const Spacer(),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -524,11 +573,15 @@ class _HomeTabState extends State<_HomeTab> {
     final event = r['event'] ?? r;
     final reason = r['reasonTags'] ?? '';
     final score = r['score'] ?? 0;
+    final eventMap = event is Map<String, dynamic>
+        ? event
+        : Map<String, dynamic>.from(event as Map);
+    final imageUrl = _imageUrl(eventMap);
     return GestureDetector(
       onTap: () {
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => EventDetailScreen(
-            event: event is Map<String, dynamic> ? event : Map<String, dynamic>.from(event as Map),
+            event: eventMap,
           ),
         ));
       },
@@ -548,6 +601,20 @@ class _HomeTabState extends State<_HomeTab> {
               ),
             ),
             child: Stack(children: [
+              if (imageUrl != null)
+                Positioned.fill(
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+              if (imageUrl != null)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.35),
+                  ),
+                ),
               Positioned(right: 8, top: 8, child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(12)),
@@ -591,6 +658,36 @@ class _HomeTabState extends State<_HomeTab> {
       ),
     ),
     );
+  }
+
+  Widget _blogThumb(Map<String, dynamic> post) {
+    final imageUrl = _imageUrl(post);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 48,
+        height: 48,
+        color: Colors.purple.withValues(alpha: 0.1),
+        child: imageUrl != null
+            ? Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.article, color: Colors.purple),
+              )
+            : const Icon(Icons.article, color: Colors.purple),
+      ),
+    );
+  }
+
+  String? _imageUrl(Map<String, dynamic> item) {
+    final raw = (item['imageUrl'] ??
+            item['featuredImageUrl'] ??
+            item['eventImageUrl'] ??
+            item['campaignImageUrl'])
+        ?.toString();
+    if (raw == null || raw.isEmpty) return null;
+    return raw.startsWith('http') ? raw : '${ApiService().baseUrl}$raw';
   }
 }
 

@@ -532,12 +532,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
-                  columns:
-                      columns.map((c) => DataColumn(label: Text(c))).toList(),
+                  columns: columns
+                      .map((c) => DataColumn(label: Text(_columnLabel(c))))
+                      .toList(),
                   rows: rows.take(300).map((r) {
                     return DataRow(
                       cells: columns
-                          .map((c) => DataCell(Text((r[c] ?? '').toString())))
+                          .map((c) => DataCell(Text(_displayValue(c, r[c]))))
                           .toList(),
                     );
                   }).toList(),
@@ -633,9 +634,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             headerDecoration:
                 pw.BoxDecoration(color: PdfColor.fromHex('#1f6feb')),
             data: [
-              columns,
+              columns.map(_columnLabel).toList(),
               ...rows.take(500).map((r) {
-                return columns.map((c) => (r[c] ?? '').toString()).toList();
+                return columns.map((c) => _displayValue(c, r[c])).toList();
               }),
             ],
           ),
@@ -699,6 +700,56 @@ class _ReportsScreenState extends State<ReportsScreen> {
     if (value == null) return 0;
     if (value is num) return value.toDouble();
     return double.tryParse(value.toString()) ?? 0;
+  }
+
+  String _columnLabel(String key) {
+    return switch (key) {
+      'userName' => 'Volonter',
+      'eventCount' => 'Broj događaja',
+      'shiftCount' => 'Broj smjena',
+      'totalHours' => 'Ukupno sati',
+      'approvedShifts' => 'Odobrene smjene',
+      'rejectedShifts' => 'Odbijene smjene',
+      'totalApprovedHours' => 'Odobreni sati',
+      'totalShifts' => 'Ukupno smjena',
+      'averageHoursPerShift' => 'Prosjek sati po smjeni',
+      'eventTitle' => 'Događaj',
+      'totalRegistrations' => 'Ukupno prijava',
+      'approvedRegistrations' => 'Odobrene prijave',
+      'campaignTitle' => 'Kampanja',
+      'goalAmount' => 'Cilj',
+      'raisedAmount' => 'Prikupljeno',
+      'donationCount' => 'Broj donacija',
+      'averageDonation' => 'Prosječna donacija',
+      'isActive' => 'Aktivna',
+      'Dogadjaji' => 'Događaji',
+      _ => key,
+    };
+  }
+
+  String _displayValue(String key, dynamic value) {
+    if (key == 'isActive') {
+      return value == true ? 'Da' : 'Ne';
+    }
+    if (value is num &&
+        {
+          'totalHours',
+          'totalApprovedHours',
+          'averageHoursPerShift',
+          'goalAmount',
+          'raisedAmount',
+          'averageDonation',
+        }.contains(key)) {
+      final suffix = {
+        'goalAmount',
+        'raisedAmount',
+        'averageDonation',
+      }.contains(key)
+          ? ' KM'
+          : '';
+      return '${value.toStringAsFixed(1)}$suffix';
+    }
+    return (value ?? '').toString();
   }
 
   Widget _card(String label, String value, IconData icon, Color color) {

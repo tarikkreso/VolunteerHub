@@ -685,9 +685,6 @@ class _EventsScreenState extends State<EventsScreen> {
     List<dynamic> registrations = [];
     bool loading = true;
     final isLocked = shift['isLocked'] == true;
-    final shiftStart = DateTime.tryParse(shift['startTime']?.toString() ?? '');
-    final shiftEnd = DateTime.tryParse(shift['endTime']?.toString() ?? '');
-
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -708,25 +705,17 @@ class _EventsScreenState extends State<EventsScreen> {
             loadRegistrations();
           }
 
-          final nowUtc = DateTime.now().toUtc();
-          final canApproveAll = !isLocked &&
-              shiftStart != null &&
-              !nowUtc.isBefore(shiftStart.toUtc());
-          final canFinalApprove = !isLocked &&
-              shiftEnd != null &&
-              !nowUtc.isBefore(shiftEnd.toUtc());
-
           return AlertDialog(
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             title: _dialogTitle(
               icon: Icons.fact_check,
-              title: 'Odobravanje sati',
+              title: 'Odobravanje prijava',
               subtitle: (shift['name'] ?? '').toString(),
             ),
             content: SizedBox(
-              width: 920,
-              height: 520,
+              width: 760,
+              height: 460,
               child: loading
                   ? const Center(child: CircularProgressIndicator())
                   : registrations.isEmpty
@@ -734,39 +723,33 @@ class _EventsScreenState extends State<EventsScreen> {
                           child: Text('Nema prijavljenih volontera.'))
                       : SingleChildScrollView(
                           child: DataTable(
-                            columnSpacing: 16,
+                            columnSpacing: 24,
                             columns: const [
                               DataColumn(label: Text('Volonter')),
                               DataColumn(label: Text('Status')),
-                              DataColumn(label: Text('Check-in')),
-                              DataColumn(label: Text('Check-out')),
-                              DataColumn(label: Text('Sati'), numeric: true),
-                              DataColumn(label: Text('Sumnjivo')),
+                              DataColumn(label: Text('Napomena')),
                               DataColumn(label: Text('Akcije')),
                             ],
                             rows: registrations.map<DataRow>((r) {
                               final status = (r['status'] ?? '').toString();
-                              final suspicious = r['isSuspicious'] == true;
                               final canReview = !isLocked &&
                                   (status == 'Pending' ||
-                                      status == 'Registered' ||
-                                      status == 'Completed');
+                                      status == 'Rejected' ||
+                                      status == 'Registered');
+                              final isAlreadyApproved = status == 'Registered';
 
                               return DataRow(
                                 cells: [
                                   DataCell(Text(r['userName'] ?? 'Volonter')),
                                   DataCell(_statusBadge(status)),
                                   DataCell(
-                                      Text(_fmtDateTime(r['checkInTime']))),
-                                  DataCell(
-                                      Text(_fmtDateTime(r['checkOutTime']))),
-                                  DataCell(Text(_hoursText(r['hoursWorked']))),
-                                  DataCell(
-                                    suspicious
-                                        ? const Icon(Icons.warning_amber,
-                                            color: Colors.red)
-                                        : const Icon(Icons.check_circle_outline,
-                                            color: Colors.green),
+                                    Text(
+                                      isAlreadyApproved
+                                          ? 'Prijava je odobrena'
+                                          : status == 'Rejected'
+                                              ? 'Moze se ponovo odobriti'
+                                              : 'Ceka odobrenje admina',
+                                    ),
                                   ),
                                   DataCell(
                                     Row(
@@ -776,14 +759,16 @@ class _EventsScreenState extends State<EventsScreen> {
                                           IconButton(
                                             icon: const Icon(Icons.check_circle,
                                                 color: Colors.green),
-                                            tooltip: 'Odobri',
+                                            tooltip: isAlreadyApproved
+                                                ? 'Ponovo potvrdi prijavu'
+                                                : 'Odobri prijavu',
                                             onPressed: () async {
                                               try {
                                                 await _api.approveRegistration(
                                                   r['id'] as int,
-                                                  hours:
-                                                      (r['hoursWorked'] as num?)
-                                                          ?.toDouble(),
+                                                  hours: 0,
+                                                  notes:
+                                                      'Prijava odobrena iz modala dogadjaja.',
                                                 );
                                                 loading = true;
                                                 setS(() {});
@@ -805,13 +790,13 @@ class _EventsScreenState extends State<EventsScreen> {
                                           IconButton(
                                             icon: const Icon(Icons.cancel,
                                                 color: Colors.red),
-                                            tooltip: 'Odbij',
+                                            tooltip: 'Odbij prijavu',
                                             onPressed: () async {
                                               try {
                                                 await _api.rejectRegistration(
                                                   r['id'] as int,
                                                   reason:
-                                                      'Odbijeno od strane administratora.',
+                                                      'Prijava odbijena od strane administratora.',
                                                 );
                                                 loading = true;
                                                 setS(() {});
@@ -839,65 +824,6 @@ class _EventsScreenState extends State<EventsScreen> {
                         ),
             ),
             actions: [
-              if (!isLocked)
-                OutlinedButton.icon(
-                  onPressed: canApproveAll
-                      ? () async {
-                          try {
-                            await _api.approveAll(shift['id'] as int);
-                            loading = true;
-                            setS(() {});
-                          } catch (_) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Došlo je do greške. Pokušajte ponovo.',
-                                  ),
-                                ),
-                              );
-                            }
-                          }
-                        }
-                      : null,
-                  icon: const Icon(Icons.done_all),
-                  label: const Text('Odobri sve'),
-                ),
-              if (!isLocked)
-                ElevatedButton.icon(
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                  onPressed: canFinalApprove
-                      ? () async {
-                          try {
-                            await _api.finalApproval(shift['id'] as int);
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            await _loadShiftsForEvent(shift['eventId'] as int);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Smjena je zakljucana finalnim odobrenjem.',
-                                  ),
-                                ),
-                              );
-                            }
-                          } catch (_) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Došlo je do greške. Pokušajte ponovo.',
-                                  ),
-                                ),
-                              );
-                            }
-                          }
-                        }
-                      : null,
-                  icon: const Icon(Icons.lock),
-                  label: const Text('Finalno odobrenje'),
-                ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Zatvori'),
@@ -1688,13 +1614,6 @@ class _EventsScreenState extends State<EventsScreen> {
   String _fmtDateTimeValue(DateTime value) {
     final d = value.toLocal();
     return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _hoursText(dynamic value) {
-    if (value == null) return '-';
-    if (value is num) return value.toStringAsFixed(1);
-    final parsed = num.tryParse(value.toString());
-    return parsed?.toStringAsFixed(1) ?? '-';
   }
 
   double? _toDouble(dynamic value) {

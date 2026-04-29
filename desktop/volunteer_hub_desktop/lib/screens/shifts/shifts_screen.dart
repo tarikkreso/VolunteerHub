@@ -201,8 +201,8 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                                 children: [
                                   Text(
                                       'Opis: ${shift['description'] ?? 'Nema opisa'}'),
-                                  const SizedBox(height: 10),
-                                  Wrap(spacing: 10, runSpacing: 8, children: [
+                                  const SizedBox(height: 12),
+                                  Wrap(spacing: 8, runSpacing: 8, children: [
                                     _infoChip(
                                       isLocked ? Icons.lock : Icons.lock_open,
                                       isLocked
@@ -512,7 +512,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: SizedBox(
-                            width: 1180,
+                            width: 1240,
                             child: _approvalHeader(),
                           ),
                         ),
@@ -524,7 +524,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                               : SingleChildScrollView(
                                   scrollDirection: Axis.horizontal,
                                   child: SizedBox(
-                                    width: 1180,
+                                    width: 1240,
                                     child: ListView.separated(
                                       itemCount: regs.length,
                                       separatorBuilder: (_, __) =>
@@ -665,12 +665,13 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                 Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
         Expanded(
             flex: 2,
-            child: Text('Prijava/Odjava',
+            child: Text('Prijava / odjava',
                 style: TextStyle(fontWeight: FontWeight.w700))),
         Expanded(
             child: Text('Prijavljeno',
                 style: TextStyle(fontWeight: FontWeight.w700))),
-        Expanded(
+        SizedBox(
+            width: 112,
             child: Text('Odobreno',
                 style: TextStyle(fontWeight: FontWeight.w700))),
         Expanded(
@@ -724,16 +725,14 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
         Expanded(
             child: Text(
                 '${_hours(registration['hoursWorked']).toStringAsFixed(1)} h')),
-        Expanded(
-          child: SizedBox(
-            width: 86,
-            child: TextField(
+        SizedBox(
+          width: 112,
+          child: TextField(
               enabled: !locked,
               controller: controller,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(isDense: true, suffixText: 'h'),
-            ),
           ),
         ),
         Expanded(
@@ -802,7 +801,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
       ]);
 
   Widget _pill(String label, Color color, {IconData? icon}) => Container(
-        constraints: const BoxConstraints(maxWidth: 150),
+        constraints: const BoxConstraints(maxWidth: 220),
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
@@ -814,11 +813,13 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
             Icon(icon, size: 13, color: color),
             const SizedBox(width: 4),
           ],
-          Text(label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+          Flexible(
+            child: Text(label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+          ),
         ]),
       );
 

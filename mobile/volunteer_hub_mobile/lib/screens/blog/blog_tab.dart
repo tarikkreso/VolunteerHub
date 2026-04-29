@@ -115,8 +115,8 @@ class _BlogTabState extends State<BlogTab> {
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: [Colors.purple.shade300, Colors.deepPurple.shade400]),
             ),
-            child: p['featuredImageUrl'] != null && (p['featuredImageUrl'] as String).isNotEmpty
-                ? Image.network(p['featuredImageUrl'], fit: BoxFit.cover,
+            child: _imageUrl(p) != null
+                ? Image.network(_imageUrl(p)!, fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Center(child: Icon(Icons.auto_stories, size: 56, color: Colors.white.withValues(alpha: 0.7))))
                 : Center(child: Icon(Icons.auto_stories, size: 56, color: Colors.white.withValues(alpha: 0.7))),
           ),
@@ -166,8 +166,8 @@ class _BlogTabState extends State<BlogTab> {
                 color: Colors.purple.shade50,
               ),
               clipBehavior: Clip.antiAlias,
-              child: p['featuredImageUrl'] != null && (p['featuredImageUrl'] as String).isNotEmpty
-                  ? Image.network(p['featuredImageUrl'], fit: BoxFit.cover,
+              child: _imageUrl(p) != null
+                  ? Image.network(_imageUrl(p)!, fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.article, color: Colors.purple, size: 32)))
                   : const Center(child: Icon(Icons.article, color: Colors.purple, size: 32)),
             ),
@@ -229,5 +229,11 @@ class _BlogTabState extends State<BlogTab> {
     } catch (_) {
       return iso;
     }
+  }
+
+  String? _imageUrl(Map<String, dynamic> post) {
+    final raw = (post['imageUrl'] ?? post['featuredImageUrl'])?.toString();
+    if (raw == null || raw.isEmpty) return null;
+    return raw.startsWith('http') ? raw : '${_api.baseUrl}$raw';
   }
 }

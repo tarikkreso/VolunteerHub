@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../services/api_service.dart';
+import '../events/event_detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -60,7 +61,10 @@ class _MapScreenState extends State<MapScreen> {
         width: 40,
         height: 40,
         child: GestureDetector(
-          onTap: () => _showEventDetails(Map<String, dynamic>.from(e)),
+          onTap: () {
+            _moveToEvent(e);
+            _showEventDetails(Map<String, dynamic>.from(e));
+          },
           child: Icon(
             Icons.location_on,
             color: upcoming ? Colors.green : Colors.red,
@@ -235,7 +239,12 @@ class _MapScreenState extends State<MapScreen> {
               ),
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.pop(context, e);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EventDetailScreen(event: e),
+                  ),
+                );
               },
               icon: const Icon(Icons.info_outline),
               label: const Text('Pogledaj detalje'),
@@ -371,8 +380,10 @@ class _MapScreenState extends State<MapScreen> {
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                       trailing: Text('${(e['registeredVolunteers'] ?? 0)}',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
-                      onTap: () =>
-                          _showEventDetails(Map<String, dynamic>.from(e)),
+                      onTap: () {
+                        _moveToEvent(e);
+                        _showEventDetails(Map<String, dynamic>.from(e));
+                      },
                     )),
             ],
           ),
@@ -389,5 +400,12 @@ class _MapScreenState extends State<MapScreen> {
     } catch (_) {
       return iso;
     }
+  }
+
+  void _moveToEvent(dynamic e) {
+    final lat = e['latitude'];
+    final lng = e['longitude'];
+    if (lat is! num || lng is! num) return;
+    _mapController.move(LatLng(lat.toDouble(), lng.toDouble()), 15);
   }
 }

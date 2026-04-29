@@ -6,7 +6,10 @@ import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import '../../services/api_service.dart';
 
 class DonationsTab extends StatefulWidget {
-  const DonationsTab({super.key});
+  final int? focusCampaignId;
+  final int focusVersion;
+
+  const DonationsTab({super.key, this.focusCampaignId, this.focusVersion = 0});
 
   @override
   State<DonationsTab> createState() => _DonationsTabState();
@@ -14,9 +17,14 @@ class DonationsTab extends StatefulWidget {
 
 class _DonationsTabState extends State<DonationsTab> {
   final _api = ApiService();
+  final _scrollController = ScrollController();
   List<dynamic> _campaigns = [];
   bool _loading = true;
+  bool _loadingMore = false;
+  int _page = 1;
+  int _totalCount = 0;
   int _totalDonations = 0;
+  static const _pageSize = 3;
 
   @override
   void initState() {
@@ -24,21 +32,78 @@ class _DonationsTabState extends State<DonationsTab> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  void didUpdateWidget(covariant DonationsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.focusVersion != oldWidget.focusVersion ||
+        widget.focusCampaignId != oldWidget.focusCampaignId) {
+      _focusCampaign();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load({bool reset = true}) async {
+    if (reset) {
+      _page = 1;
+      setState(() => _loading = true);
+    } else {
+      setState(() => _loadingMore = true);
+    }
     try {
-      final res = await _api.getCampaigns(pageSize: 3);
+      final res = await _api.getCampaigns(page: _page, pageSize: _pageSize);
       final data = res.data;
-      _campaigns =
+      final items =
           data is Map ? (data['items'] ?? []) : (data is List ? data : []);
+      _totalCount = data is Map
+          ? ((data['totalCount'] as num?)?.toInt() ?? items.length)
+          : items.length;
+      _campaigns = reset ? List.from(items) : [..._campaigns, ...items];
       _totalDonations = 0;
       for (final campaign in _campaigns) {
         _totalDonations += (campaign['donationCount'] as num?)?.toInt() ?? 0;
       }
+      if (reset) _focusCampaign();
     } catch (e) {
       debugPrint('Campaigns error: $e');
     }
-    if (mounted) setState(() => _loading = false);
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _loadingMore = false;
+      });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || _campaigns.length >= _totalCount) return;
+    _page += 1;
+    await _load(reset: false);
+  }
+
+  void _focusCampaign() {
+    final id = widget.focusCampaignId;
+    if (id == null) return;
+    final index = _campaigns.indexWhere((c) => c['id'] == id);
+    if (index < 0) {
+      if (!_loadingMore && (_totalCount == 0 || _campaigns.length < _totalCount)) {
+        _loadMore().then((_) => _focusCampaign());
+      }
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final target = 116.0 + index * 330.0;
+      _scrollController.animateTo(
+        target.clamp(0.0, _scrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
@@ -63,13 +128,41 @@ class _DonationsTabState extends State<DonationsTab> {
               ],
             )
           : ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(16),
-              itemCount: _campaigns.length + 1,
+              itemCount: _campaigns.length + 2,
               itemBuilder: (ctx, i) {
                 if (i == 0) return _buildSummaryHeader();
+                if (i == _campaigns.length + 1) return _buildPagingFooter();
                 return _campaignCard(_campaigns[i - 1]);
               },
             ),
+    );
+  }
+
+  Widget _buildPagingFooter() {
+    if (_campaigns.length >= _totalCount) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Center(
+          child: Text('Prikazane su sve kampanje',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: OutlinedButton.icon(
+        onPressed: _loadingMore ? null : _loadMore,
+        icon: _loadingMore
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.expand_more),
+        label: Text(_loadingMore ? 'Učitavanje...' : 'Učitaj još'),
+      ),
     );
   }
 
@@ -113,6 +206,7 @@ class _DonationsTabState extends State<DonationsTab> {
     final raised = (c['currentAmount'] ?? c['raisedAmount'] ?? 0).toDouble();
     final pct = goal > 0 ? (raised / goal).clamp(0.0, 1.0) : 0.0;
     final donationCount = c['donationCount'] ?? 0;
+    final imageUrl = _imageUrl(c);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -125,16 +219,24 @@ class _DonationsTabState extends State<DonationsTab> {
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: (c['isActive'] == true ? Colors.green : Colors.grey)
-                        .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 58,
+                    height: 58,
+                    color: Colors.pink.withValues(alpha: 0.08),
+                    child: imageUrl != null
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                                Icons.favorite,
+                                color: Colors.pink,
+                                size: 28),
+                          )
+                        : const Icon(Icons.favorite,
+                            color: Colors.pink, size: 28),
                   ),
-                  child: Icon(Icons.campaign,
-                      color: c['isActive'] == true ? Colors.green : Colors.grey,
-                      size: 28),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -244,6 +346,12 @@ class _DonationsTabState extends State<DonationsTab> {
         ),
       ),
     );
+  }
+
+  String? _imageUrl(Map<String, dynamic> item) {
+    final raw = item['imageUrl']?.toString();
+    if (raw == null || raw.isEmpty) return null;
+    return raw.startsWith('http') ? raw : '${_api.baseUrl}$raw';
   }
 
   Future<void> _showRecentDonors(int campaignId, String campaignTitle) async {

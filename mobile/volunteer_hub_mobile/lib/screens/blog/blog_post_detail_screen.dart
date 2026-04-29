@@ -47,12 +47,11 @@ class _BlogPostDetailScreenState extends State<BlogPostDetailScreen> {
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    if (_post!['featuredImageUrl'] != null &&
-                        (_post!['featuredImageUrl'] as String).isNotEmpty)
+                    if (_imageUrl != null)
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: Image.network(
-                          _post!['featuredImageUrl'],
+                          _imageUrl!,
                           width: double.infinity,
                           height: 200,
                           fit: BoxFit.cover,
@@ -114,5 +113,11 @@ class _BlogPostDetailScreenState extends State<BlogPostDetailScreen> {
     } catch (_) {
       return iso;
     }
+  }
+
+  String? get _imageUrl {
+    final raw = (_post?['imageUrl'] ?? _post?['featuredImageUrl'])?.toString();
+    if (raw == null || raw.isEmpty) return null;
+    return raw.startsWith('http') ? raw : '${ApiService().baseUrl}$raw';
   }
 }

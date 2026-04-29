@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import 'shift_detail_screen.dart';
 
 class ShiftsTab extends StatefulWidget {
   final ValueNotifier<int>? refreshTrigger;
@@ -53,7 +54,7 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
       for (final s in _shifts) {
         if (s['checkInTime'] != null && s['checkOutTime'] == null) {
           _activeShiftId = s['shiftId'];
-          _checkInTime = DateTime.tryParse(s['checkInTime'] ?? '')?.toLocal();
+          _checkInTime = _parseApiDate(s['checkInTime']);
           _startTimer();
           break;
         }
@@ -259,7 +260,7 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
     final startTime = DateTime.tryParse(s['shiftStartTime'] ?? '');
     final endTime = DateTime.tryParse(s['shiftEndTime'] ?? '');
 
-    return Card(
+    final card = Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: isActive ? 4 : 1,
       shape: RoundedRectangleBorder(
@@ -278,15 +279,20 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
                   Text(s['shiftName'], style: TextStyle(fontSize: 13, color: Colors.grey[600])),
               ]),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: _statusColor(status).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _statusLabel(status),
-                style: TextStyle(fontSize: 12, color: _statusColor(status), fontWeight: FontWeight.w600),
+            Tooltip(
+              message: status == 'Pending'
+                  ? 'Admin treba odobriti prijavu za ovu smjenu u sekciji Događaji.'
+                  : _statusLabel(status),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _statusColor(status).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _statusLabel(status),
+                  style: TextStyle(fontSize: 12, color: _statusColor(status), fontWeight: FontWeight.w600),
+                ),
               ),
             ),
           ]),
@@ -369,17 +375,57 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
                 ]),
             ]),
           ],
+          if (!isUpcoming && shiftId > 0) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _openShiftDetail(s),
+                icon: const Icon(Icons.chevron_right, size: 18),
+                label: const Text('Detalji smjene'),
+              ),
+            ),
+          ],
         ]),
       ),
     );
+
+    if (isUpcoming || shiftId <= 0) return card;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _openShiftDetail(s),
+      child: card,
+    );
+  }
+
+  Future<void> _openShiftDetail(dynamic shift) async {
+    final shiftMap = shift is Map<String, dynamic>
+        ? shift
+        : Map<String, dynamic>.from(shift as Map);
+    final shiftId = _readInt(shiftMap['shiftId']);
+    if (shiftId == null) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShiftDetailScreen(
+          shiftId: shiftId,
+          initialRegistration: shiftMap,
+        ),
+      ),
+    );
+
+    if (mounted) await _load();
   }
 
   Future<void> _checkIn(int shiftId) async {
     setState(() => _actionLoading = true);
     try {
-      await _api.checkIn(shiftId);
+      final res = await _api.checkIn(shiftId);
       _activeShiftId = shiftId;
-      _checkInTime = DateTime.now();
+      _checkInTime = res.data is Map
+          ? _parseApiDate(res.data['checkInTime']) ?? DateTime.now()
+          : DateTime.now();
       _startTimer();
       await _load();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check-in uspješan!'), backgroundColor: Colors.green));
@@ -455,11 +501,30 @@ class _ShiftsTabState extends State<ShiftsTab> with SingleTickerProviderStateMix
   String _fmtDateTime(String? iso) {
     if (iso == null) return '-';
     try {
-      final d = DateTime.parse(iso);
+      final d = _parseApiDate(iso) ?? DateTime.parse(iso);
       return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year} '
           '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return iso;
     }
+  }
+
+  DateTime? _parseApiDate(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString();
+    final parsed = DateTime.tryParse(text);
+    if (parsed == null) return null;
+    final hasTimeZone =
+        text.endsWith('Z') || RegExp(r'[+-]\d\d:\d\d$').hasMatch(text);
+    if (hasTimeZone) return parsed.toLocal();
+    return DateTime.utc(parsed.year, parsed.month, parsed.day, parsed.hour,
+            parsed.minute, parsed.second, parsed.millisecond, parsed.microsecond)
+        .toLocal();
+  }
+
+  int? _readInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
   }
 }

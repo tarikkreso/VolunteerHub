@@ -5,7 +5,6 @@ import 'config/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/blog/blog_post_detail_screen.dart';
-import 'screens/donations/campaign_detail_screen.dart';
 import 'screens/events/event_detail_screen.dart';
 import 'screens/home/home_screen.dart';
 
@@ -72,7 +71,7 @@ class _VolunteerHubAppState extends State<VolunteerHubApp> {
       case 'campaigns':
       case 'donations':
         nav.push(MaterialPageRoute(
-          builder: (_) => CampaignDetailScreen(campaignId: id),
+          builder: (_) => HomeScreen(initialTab: 3, initialCampaignId: id),
         ));
         break;
     }

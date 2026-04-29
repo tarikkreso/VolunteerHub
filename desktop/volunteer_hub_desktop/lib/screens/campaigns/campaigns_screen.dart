@@ -178,17 +178,22 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                     controller: desc,
-                    decoration: const InputDecoration(labelText: 'Opis'),
-                    maxLines: 3),
+                    decoration: const InputDecoration(labelText: 'Opis *'),
+                    maxLines: 3,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Opis je obavezan' : null),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: goal,
                   decoration: const InputDecoration(labelText: 'Cilj (KM) *'),
                   keyboardType: TextInputType.number,
-                  validator: (v) =>
-                      v == null || v.isEmpty || (double.tryParse(v) ?? 0) <= 0
-                          ? 'Unesite pozitivan iznos'
-                          : null,
+                  validator: (v) {
+                    final value = _parseAmount(v);
+                    if (value == null || value <= 0) {
+                      return 'Unesite pozitivan iznos, npr. 500 ili 500,50';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
                 SwitchListTile(
@@ -212,7 +217,7 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                 final data = {
                   'title': title.text.trim(),
                   'description': desc.text.trim(),
-                  'goalAmount': double.parse(goal.text.trim()),
+                  'goalAmount': _parseAmount(goal.text)!,
                   'startDate': _normalizeCampaignDate(
                       existing?['startDate'], now.toIso8601String()),
                   'endDate':
@@ -450,6 +455,12 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
     return fallback;
   }
 
+  double? _parseAmount(String? value) {
+    final normalized = value?.trim().replaceAll(',', '.');
+    if (normalized == null || normalized.isEmpty) return null;
+    return double.tryParse(normalized);
+  }
+
   String _normalizeCampaignDate(dynamic value, String fallbackIso) {
     if (value == null) return fallbackIso;
     final text = value.toString().trim();
@@ -463,6 +474,15 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
       final data = error.response?.data;
       if (data is Map) {
         final message = data['message'] ?? data['title'] ?? data['error'];
+        final errors = data['errors'];
+        if (errors is Map && errors.isNotEmpty) {
+          final fieldErrors = errors.values
+              .expand((value) => value is List ? value : [value])
+              .map((value) => value.toString())
+              .where((value) => value.trim().isNotEmpty)
+              .join(' ');
+          if (fieldErrors.isNotEmpty) return fieldErrors;
+        }
         if (message != null && message.toString().trim().isNotEmpty) {
           return message.toString();
         }
