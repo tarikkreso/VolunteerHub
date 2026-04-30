@@ -6,7 +6,7 @@ namespace VolunteerHub.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SuperAdmin")]
 public class ReportsController : ControllerBase
 {
     private readonly IReportService _reportService;

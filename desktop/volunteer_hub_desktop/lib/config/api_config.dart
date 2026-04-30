@@ -20,6 +20,7 @@ class ApiConfig {
   static const String donations = '/donations';
   static const String leaderboard = '/leaderboard';
   static const String blogPosts = '/blogposts';
+  static const String blogCategories = '/blogcategories';
   static const String categories = '/categories';
   static const String cities = '/cities';
   static const String countries = '/countries';

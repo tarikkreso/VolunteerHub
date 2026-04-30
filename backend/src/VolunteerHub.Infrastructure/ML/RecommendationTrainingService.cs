@@ -255,7 +255,7 @@ public class RecommendationTrainingService : BackgroundService
                             UserId = user.UserId,
                             EventId = evt.Id,
                             Score = Math.Round(prediction.Probability, 4),
-                            ReasonTags = string.Join(", ", user.Skills.Take(3)),
+                            ReasonTags = $"Odgovara tvojim vjestinama: {string.Join(", ", user.Skills.Take(3))}",
                             CalculatedAt = DateTime.UtcNow
                         });
                     }

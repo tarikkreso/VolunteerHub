@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -27,6 +29,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final _shiftsRefreshTrigger = ValueNotifier<int>(0);
   int? _focusedCampaignId;
   int _donationsFocusVersion = 0;
+  Timer? _notificationTimer;
+  int _unreadNotifications = 0;
 
   final _titles = ['Početna', 'Događaji', 'Smjene', 'Donacije', 'Profil'];
 
@@ -36,6 +40,29 @@ class _HomeScreenState extends State<HomeScreen> {
     _currentIndex = widget.initialTab;
     _focusedCampaignId = widget.initialCampaignId;
     if (_focusedCampaignId != null) _donationsFocusVersion = 1;
+    _loadUnreadNotifications();
+    _notificationTimer = Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => _loadUnreadNotifications(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    _shiftsRefreshTrigger.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUnreadNotifications() async {
+    try {
+      final res = await ApiService().getNotifications();
+      final items = res.data is List ? res.data as List : const [];
+      final unread = items.where((n) => n is Map && n['isRead'] != true).length;
+      if (mounted) setState(() => _unreadNotifications = unread);
+    } catch (_) {
+      // Polling failure should not interrupt the main mobile workflow.
+    }
   }
 
   @override
@@ -54,9 +81,37 @@ class _HomeScreenState extends State<HomeScreen> {
               label: const Text('Blog'),
               style: TextButton.styleFrom(foregroundColor: Colors.white),
             ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => _showNotifications(),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () => _showNotifications(),
+              ),
+              if (_unreadNotifications > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      _unreadNotifications > 9
+                          ? '9+'
+                          : _unreadNotifications.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -107,7 +162,13 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final res = await api.getNotifications();
       notifs = res.data is List ? res.data : [];
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Obavijesti nije moguce ucitati.')),
+        );
+      }
+    }
 
     if (!mounted) return;
     showModalBottomSheet(
@@ -139,7 +200,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (notifs.isNotEmpty)
                     TextButton(
                       onPressed: () async {
-                        try { await api.put('/notifications/read-all'); } catch (_) {}
+                        try {
+                          await api.put('/notifications/read-all');
+                          await _loadUnreadNotifications();
+                        } catch (_) {}
                         if (ctx.mounted) Navigator.pop(ctx);
                       },
                       child: const Text('Označi sve'),
@@ -185,7 +249,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           isThreeLine: true,
                           onTap: () async {
                             if (n['isRead'] != true) {
-                              try { await api.markNotificationRead(n['id']); } catch (_) {}
+                              try {
+                                await api.markNotificationRead(n['id']);
+                                await _loadUnreadNotifications();
+                              } catch (_) {}
                             }
                           },
                         );

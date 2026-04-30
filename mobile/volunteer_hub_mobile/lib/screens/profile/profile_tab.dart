@@ -648,6 +648,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
                             }
                             await _api.updateProfile(data);
                             if (ctx.mounted) Navigator.pop(ctx);
+                            if (!mounted) return;
                             final auth = context.read<AuthProvider>();
                             auth.updateUser({
                               ...user,
@@ -736,7 +737,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       _load();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vještina dodana'), backgroundColor: Colors.green));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.'), backgroundColor: Colors.red));
     }
   }
 
@@ -746,7 +747,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       _load();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vještina uklonjena'), backgroundColor: Colors.green));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.'), backgroundColor: Colors.red));
     }
   }
 }

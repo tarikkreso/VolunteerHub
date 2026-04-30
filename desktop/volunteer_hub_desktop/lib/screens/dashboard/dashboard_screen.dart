@@ -10,6 +10,7 @@ import '../blog/blog_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 import '../skills/skills_screen.dart';
+import '../blog/blog_categories_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -33,6 +34,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _NavItem(icon: Icons.article, label: 'Blog'),
     _NavItem(icon: Icons.bar_chart, label: 'Izvještaji'),
     _NavItem(icon: Icons.psychology, label: 'Vještine'),
+    _NavItem(icon: Icons.category, label: 'Blog kategorije'),
     _NavItem(icon: Icons.settings, label: 'Postavke'),
   ];
 
@@ -180,6 +182,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 7:
         return const SkillsScreen();
       case 8:
+        return const BlogCategoriesScreen();
+      case 9:
         return const SettingsScreen();
       default:
         return const SizedBox();

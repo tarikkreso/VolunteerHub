@@ -30,7 +30,9 @@ public class DonationsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<DonationDto>> GetById(int id)
     {
-        var result = await _donationService.GetByIdAsync(id);
+        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
+        var includeAll = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
+        var result = await _donationService.GetByIdForUserAsync(id, userId, includeAll);
         if (result == null) return NotFound(new { message = "Donacija nije pronadjena." });
         return Ok(result);
     }
@@ -47,6 +49,16 @@ public class DonationsController : ControllerBase
     {
         int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
         var result = await _donationService.GetByUserAsync(userId, request);
+        return Ok(result);
+    }
+
+    [HttpGet("payment-intent/{paymentIntentId}")]
+    public async Task<ActionResult<DonationDto>> GetByPaymentIntent(string paymentIntentId)
+    {
+        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
+        var includeAll = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
+        var result = await _donationService.GetByPaymentIntentForUserAsync(paymentIntentId, userId, includeAll);
+        if (result == null) return NotFound(new { message = "Donacija jos nije evidentirana." });
         return Ok(result);
     }
 

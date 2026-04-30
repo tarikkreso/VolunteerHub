@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
@@ -35,6 +36,11 @@ public class LeaderboardController : ControllerBase
     [Authorize]
     public async Task<ActionResult<LeaderboardEntryDto>> GetUserRank(int userId)
     {
+        var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var isAdmin = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
+        if (!isAdmin && currentUserId != userId)
+            return Forbid();
+
         var result = await _leaderboardService.GetUserRankAsync(userId);
         if (result == null) return NotFound(new { message = "Korisnik nema unos na ljestvici." });
         return Ok(result);

@@ -85,7 +85,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
           SizedBox(
             width: 320,
             child: DropdownButtonFormField<int>(
-              value: _selectedEventId,
+              initialValue: _selectedEventId,
               isExpanded: true,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.event),
@@ -299,6 +299,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                             firstDate: DateTime(2024),
                             lastDate: DateTime(2030));
                         if (d != null) {
+                          if (!ctx.mounted) return;
                           final t = await showTimePicker(
                               context: ctx,
                               initialTime: TimeOfDay.fromDateTime(start));
@@ -319,6 +320,7 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                             firstDate: DateTime(2024),
                             lastDate: DateTime(2030));
                         if (d != null) {
+                          if (!ctx.mounted) return;
                           final t = await showTimePicker(
                               context: ctx,
                               initialTime: TimeOfDay.fromDateTime(end));
@@ -623,8 +625,9 @@ class _ShiftsScreenState extends State<ShiftsScreen> {
                                     if (ok != true) return;
                                     try {
                                       await _api.finalApproval(shift['id']);
-                                      if (dialogContext.mounted)
+                                      if (dialogContext.mounted) {
                                         Navigator.pop(dialogContext);
+                                      }
                                       await _loadShifts();
                                       if (mounted) {
                                         ScaffoldMessenger.of(context)

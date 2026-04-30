@@ -158,6 +158,14 @@ class ApiService {
   Future<Response> deleteBlogPost(int id) =>
       _dio.delete('${ApiConfig.blogPosts}/$id');
 
+  Future<Response> getBlogCategories() => _dio.get(ApiConfig.blogCategories);
+  Future<Response> createBlogCategory(Map<String, dynamic> data) =>
+      _dio.post(ApiConfig.blogCategories, data: data);
+  Future<Response> updateBlogCategory(int id, Map<String, dynamic> data) =>
+      _dio.put('${ApiConfig.blogCategories}/$id', data: data);
+  Future<Response> deleteBlogCategory(int id) =>
+      _dio.delete('${ApiConfig.blogCategories}/$id');
+
   // ── Leaderboard ──
   Future<Response> getLeaderboard({int top = 20}) =>
       _dio.get(ApiConfig.leaderboard, queryParameters: {'top': top});

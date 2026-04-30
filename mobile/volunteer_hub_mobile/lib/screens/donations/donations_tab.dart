@@ -505,6 +505,12 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
 
   String _normalizeAmount(String value) => value.trim().replaceAll(',', '.');
 
+  String _newIdempotencyKey(double amount) {
+    final campaignId = widget.campaign['id'];
+    final cents = (amount * 100).round();
+    return '$campaignId-$cents-${DateTime.now().microsecondsSinceEpoch}';
+  }
+
   double? _parseAmount(String value) {
     final normalized = _normalizeAmount(value);
     return double.tryParse(normalized);
@@ -538,10 +544,13 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
         'isAnonymous': _anonymous,
         'donorName': donorName,
         'message': message.isEmpty ? null : message,
+        'idempotencyKey': _newIdempotencyKey(amount),
       });
       final data = response.data;
       final clientSecret =
           data is Map ? data['clientSecret']?.toString() : null;
+      final paymentIntentId =
+          data is Map ? data['paymentIntentId']?.toString() : null;
       final publishableKey =
           data is Map ? data['publishableKey']?.toString() ?? '' : '';
       final demoMode = data is Map && data['demoMode'] == true;
@@ -563,6 +572,10 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
           ),
         );
         await Stripe.instance.presentPaymentSheet();
+      }
+
+      if (paymentIntentId != null && paymentIntentId.isNotEmpty) {
+        await _waitForServerDonation(paymentIntentId);
       }
 
       if (!mounted) return;
@@ -595,6 +608,24 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
             : 'Greška pri donaciji. Pokušajte ponovo.';
       });
     }
+  }
+
+  Future<void> _waitForServerDonation(String paymentIntentId) async {
+    for (var attempt = 0; attempt < 8; attempt++) {
+      try {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        await widget.api.getDonationByPaymentIntent(paymentIntentId);
+        return;
+      } on DioException catch (e) {
+        if (e.response?.statusCode != 404) {
+          rethrow;
+        }
+      }
+    }
+
+    throw StateError(
+      'Plaćanje je završeno, ali server još nije evidentirao donaciju. Provjerite Stripe webhook i pokušajte osvježiti kampanju.',
+    );
   }
 
   InputDecoration _fieldDecoration(String label, IconData icon,

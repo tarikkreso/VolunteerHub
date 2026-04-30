@@ -75,9 +75,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     try {
       await _api.registerForShift(shiftId);
       setState(() => _registeredShiftIds.add(shiftId));
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Uspješno ste se prijavili!'), backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Uspješno ste se prijavili!'), backgroundColor: Colors.green),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

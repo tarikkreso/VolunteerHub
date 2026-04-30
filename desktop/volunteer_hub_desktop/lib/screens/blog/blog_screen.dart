@@ -151,12 +151,15 @@ class _BlogScreenState extends State<BlogScreen> {
                     maxLines: 8,
                     maxLength: 8000,
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty)
+                      if (v == null || v.trim().isEmpty) {
                         return 'Sadržaj je obavezan';
-                      if (v.trim().length < 50)
+                      }
+                      if (v.trim().length < 50) {
                         return 'Sadržaj mora imati najmanje 50 znakova';
-                      if (v.trim().length > 8000)
+                      }
+                      if (v.trim().length > 8000) {
                         return 'Sadržaj može imati najviše 8000 znakova';
+                      }
                       return null;
                     },
                   ),
@@ -211,10 +214,11 @@ class _BlogScreenState extends State<BlogScreen> {
                             : 'Objava uspješno kreirana')));
                   }
                 } catch (e) {
-                  if (mounted)
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content:
                             Text('Došlo je do greške. Pokušajte ponovo.')));
+                  }
                 }
               },
               child: Text(isEdit ? 'Spremi' : 'Kreiraj'),
@@ -386,13 +390,15 @@ class _BlogScreenState extends State<BlogScreen> {
       try {
         await _api.deleteBlogPost(id);
         _load();
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(const SnackBar(content: Text('Objava obrisana')));
+        }
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
+              const SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
+        }
       }
     }
   }

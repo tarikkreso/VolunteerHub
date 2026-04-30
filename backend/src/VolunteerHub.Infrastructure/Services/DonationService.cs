@@ -52,6 +52,40 @@ public class DonationService : IDonationService
         return entity == null ? null : MapDonation(entity);
     }
 
+    public async Task<DonationDto?> GetByIdForUserAsync(int id, int userId, bool includeAll)
+    {
+        var query = _context.Donations
+            .Include(d => d.Campaign)
+            .AsQueryable();
+
+        if (!includeAll)
+        {
+            query = query.Where(d => d.UserId == userId);
+        }
+
+        var entity = await query.FirstOrDefaultAsync(d => d.Id == id);
+        return entity == null ? null : MapDonation(entity);
+    }
+
+    public async Task<DonationDto?> GetByPaymentIntentForUserAsync(string paymentIntentId, int userId, bool includeAll)
+    {
+        if (string.IsNullOrWhiteSpace(paymentIntentId))
+            return null;
+
+        var query = _context.Donations
+            .Include(d => d.Campaign)
+            .Where(d => d.StripePaymentIntentId == paymentIntentId)
+            .AsQueryable();
+
+        if (!includeAll)
+        {
+            query = query.Where(d => d.UserId == userId);
+        }
+
+        var entity = await query.FirstOrDefaultAsync();
+        return entity == null ? null : MapDonation(entity);
+    }
+
     public async Task<PaymentIntentResponseDto> CreatePaymentIntentAsync(PaymentIntentRequestDto dto, int? userId)
     {
         if (dto.Amount < 0.5m)
@@ -63,6 +97,9 @@ public class DonationService : IDonationService
 
         if (!campaign.IsActive || campaign.EndDate < DateTime.UtcNow)
             throw new InvalidOperationException("Donacija nije moguca jer kampanja nije aktivna.");
+
+        if (string.IsNullOrWhiteSpace(dto.IdempotencyKey))
+            throw new InvalidOperationException("Idempotency kljuc je obavezan za sigurnu obradu donacije.");
 
         var stripeKey = GetStripeSetting("SecretKey", "STRIPE_SECRET_KEY");
         var publishableKey = GetStripeSetting("PublishableKey", "STRIPE_PUBLISHABLE_KEY");
@@ -95,7 +132,8 @@ public class DonationService : IDonationService
         {
             ClientSecret = paymentIntent.ClientSecret,
             PaymentIntentId = paymentIntent.Id,
-            PublishableKey = publishableKey
+            PublishableKey = publishableKey,
+            PaymentStatus = paymentIntent.Status ?? "requires_payment_method"
         };
     }
 
@@ -378,6 +416,6 @@ public class DonationService : IDonationService
         if (!string.IsNullOrWhiteSpace(supplied))
             return $"donation:{userId ?? 0}:{dto.CampaignId}:{supplied}";
 
-        return $"donation:{userId ?? 0}:{dto.CampaignId}:{dto.Amount:F2}:{Guid.NewGuid():N}";
+        throw new InvalidOperationException("Idempotency kljuc je obavezan za sigurnu obradu donacije.");
     }
 }

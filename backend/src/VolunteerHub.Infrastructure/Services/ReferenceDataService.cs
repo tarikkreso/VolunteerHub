@@ -80,23 +80,36 @@ public class ReferenceDataService : IReferenceDataService
                 Id = c.Id,
                 Name = c.Name,
                 PostalCode = c.PostalCode,
+                CountryId = c.CountryId,
                 CountryName = c.Country.Name,
                 CreatedAt = c.CreatedAt
             })
             .ToListAsync();
     }
 
-    public async Task<CityDto> CreateCityAsync(City city)
+    public async Task<CityDto> CreateCityAsync(CityUpsertDto dto)
     {
+        if (!await _context.Countries.AnyAsync(c => c.Id == dto.CountryId))
+            throw new InvalidOperationException("Odabrana drzava nije pronadjena.");
+
+        var city = new City
+        {
+            Name = dto.Name,
+            PostalCode = dto.PostalCode,
+            CountryId = dto.CountryId
+        };
+
         _context.Cities.Add(city);
         await _context.SaveChangesAsync();
         return (await GetCitiesAsync()).First(c => c.Id == city.Id);
     }
 
-    public async Task<bool> UpdateCityAsync(int id, City dto)
+    public async Task<bool> UpdateCityAsync(int id, CityUpsertDto dto)
     {
         var city = await _context.Cities.FindAsync(id);
         if (city == null) return false;
+        if (!await _context.Countries.AnyAsync(c => c.Id == dto.CountryId))
+            throw new InvalidOperationException("Odabrana drzava nije pronadjena.");
 
         city.Name = dto.Name;
         city.PostalCode = dto.PostalCode;
@@ -125,14 +138,20 @@ public class ReferenceDataService : IReferenceDataService
             .ToListAsync();
     }
 
-    public async Task<CountryDto> CreateCountryAsync(Country country)
+    public async Task<CountryDto> CreateCountryAsync(CountryUpsertDto dto)
     {
+        var country = new Country
+        {
+            Name = dto.Name,
+            Code = dto.Code
+        };
+
         _context.Countries.Add(country);
         await _context.SaveChangesAsync();
         return (await GetCountriesAsync()).First(c => c.Id == country.Id);
     }
 
-    public async Task<bool> UpdateCountryAsync(int id, Country dto)
+    public async Task<bool> UpdateCountryAsync(int id, CountryUpsertDto dto)
     {
         var country = await _context.Countries.FindAsync(id);
         if (country == null) return false;
@@ -169,14 +188,22 @@ public class ReferenceDataService : IReferenceDataService
             .ToListAsync();
     }
 
-    public async Task<SkillDto> CreateSkillAsync(Skill skill)
+    public async Task<SkillDto> CreateSkillAsync(SkillUpsertDto dto)
     {
+        var skill = new Skill
+        {
+            Name = dto.Name,
+            Description = dto.Description,
+            IconUrl = dto.IconUrl,
+            Color = dto.Color
+        };
+
         _context.Skills.Add(skill);
         await _context.SaveChangesAsync();
         return (await GetSkillsAsync()).First(s => s.Id == skill.Id);
     }
 
-    public async Task<bool> UpdateSkillAsync(int id, Skill dto)
+    public async Task<bool> UpdateSkillAsync(int id, SkillUpsertDto dto)
     {
         var skill = await _context.Skills.FindAsync(id);
         if (skill == null) return false;
@@ -197,6 +224,58 @@ public class ReferenceDataService : IReferenceDataService
             throw new InvalidOperationException("Vjestina je dodijeljena korisnicima i ne moze se obrisati.");
 
         _context.Skills.Remove(skill);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<BlogCategoryDto>> GetBlogCategoriesAsync()
+    {
+        return await _context.BlogCategories
+            .OrderBy(c => c.Name)
+            .Select(c => new BlogCategoryDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                Color = c.Color,
+                CreatedAt = c.CreatedAt
+            })
+            .ToListAsync();
+    }
+
+    public async Task<BlogCategoryDto> CreateBlogCategoryAsync(BlogCategoryUpsertDto dto)
+    {
+        var category = new BlogCategory
+        {
+            Name = dto.Name,
+            Description = dto.Description,
+            Color = dto.Color
+        };
+
+        _context.BlogCategories.Add(category);
+        await _context.SaveChangesAsync();
+        return (await GetBlogCategoriesAsync()).First(c => c.Id == category.Id);
+    }
+
+    public async Task<bool> UpdateBlogCategoryAsync(int id, BlogCategoryUpsertDto dto)
+    {
+        var category = await _context.BlogCategories.FindAsync(id);
+        if (category == null) return false;
+
+        category.Name = dto.Name;
+        category.Description = dto.Description;
+        category.Color = dto.Color;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task DeleteBlogCategoryAsync(int id)
+    {
+        var category = await _context.BlogCategories.FindAsync(id)
+            ?? throw new KeyNotFoundException("Blog kategorija nije pronadjena.");
+        if (await _context.BlogPosts.AnyAsync(p => p.BlogCategoryId == id))
+            throw new InvalidOperationException("Blog kategorija se koristi na objavama i ne moze se obrisati.");
+
+        _context.BlogCategories.Remove(category);
         await _context.SaveChangesAsync();
     }
 }

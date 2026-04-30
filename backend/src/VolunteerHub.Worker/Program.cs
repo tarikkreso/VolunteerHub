@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using VolunteerHub.Infrastructure.Data;
+using VolunteerHub.Infrastructure.ML;
 using VolunteerHub.Worker;
 
 LoadDotEnv();
@@ -12,8 +13,14 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+
 // Add RabbitMQ Consumer as hosted service
 builder.Services.AddHostedService<RabbitMQConsumer>();
+builder.Services.AddHostedService<RecommendationTrainingService>();
 
 var host = builder.Build();
 host.Run();

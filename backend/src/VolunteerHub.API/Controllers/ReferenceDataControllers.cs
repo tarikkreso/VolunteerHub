@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
 using VolunteerHub.Application.Services.Interfaces;
-using VolunteerHub.Domain.Entities;
 
 namespace VolunteerHub.API.Controllers;
 
@@ -80,7 +79,7 @@ public class CitiesController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin,SuperAdmin")]
-    public async Task<ActionResult<CityDto>> Create([FromBody] City city)
+    public async Task<ActionResult<CityDto>> Create([FromBody] CityUpsertDto city)
     {
         var created = await _referenceData.CreateCityAsync(city);
         return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
@@ -88,7 +87,7 @@ public class CitiesController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
-    public async Task<IActionResult> Update(int id, [FromBody] City dto)
+    public async Task<IActionResult> Update(int id, [FromBody] CityUpsertDto dto)
     {
         var success = await _referenceData.UpdateCityAsync(id, dto);
         return success ? NoContent() : NotFound();
@@ -134,7 +133,7 @@ public class CountriesController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin,SuperAdmin")]
-    public async Task<ActionResult<CountryDto>> Create([FromBody] Country country)
+    public async Task<ActionResult<CountryDto>> Create([FromBody] CountryUpsertDto country)
     {
         var created = await _referenceData.CreateCountryAsync(country);
         return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
@@ -142,7 +141,7 @@ public class CountriesController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
-    public async Task<IActionResult> Update(int id, [FromBody] Country dto)
+    public async Task<IActionResult> Update(int id, [FromBody] CountryUpsertDto dto)
     {
         var success = await _referenceData.UpdateCountryAsync(id, dto);
         return success ? NoContent() : NotFound();
@@ -188,7 +187,7 @@ public class SkillsController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin,SuperAdmin")]
-    public async Task<ActionResult<SkillDto>> Create([FromBody] Skill skill)
+    public async Task<ActionResult<SkillDto>> Create([FromBody] SkillUpsertDto skill)
     {
         var created = await _referenceData.CreateSkillAsync(skill);
         return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
@@ -196,7 +195,7 @@ public class SkillsController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,SuperAdmin")]
-    public async Task<IActionResult> Update(int id, [FromBody] Skill dto)
+    public async Task<IActionResult> Update(int id, [FromBody] SkillUpsertDto dto)
     {
         var success = await _referenceData.UpdateSkillAsync(id, dto);
         return success ? NoContent() : NotFound();
@@ -209,6 +208,60 @@ public class SkillsController : ControllerBase
         try
         {
             await _referenceData.DeleteSkillAsync(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+}
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class BlogCategoriesController : ControllerBase
+{
+    private readonly IReferenceDataService _referenceData;
+
+    public BlogCategoriesController(IReferenceDataService referenceData)
+    {
+        _referenceData = referenceData;
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<List<BlogCategoryDto>>> GetAll()
+    {
+        return Ok(await _referenceData.GetBlogCategoriesAsync());
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<BlogCategoryDto>> Create([FromBody] BlogCategoryUpsertDto dto)
+    {
+        var created = await _referenceData.CreateBlogCategoryAsync(dto);
+        return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
+    }
+
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> Update(int id, [FromBody] BlogCategoryUpsertDto dto)
+    {
+        var success = await _referenceData.UpdateBlogCategoryAsync(id, dto);
+        return success ? NoContent() : NotFound();
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        try
+        {
+            await _referenceData.DeleteBlogCategoryAsync(id);
             return NoContent();
         }
         catch (KeyNotFoundException)

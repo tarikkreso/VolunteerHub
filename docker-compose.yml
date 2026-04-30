@@ -1,7 +1,7 @@
 services:
   # SQL Server Database
   sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
     container_name: volunteerhub-sqlserver
     environment:
       - ACCEPT_EULA=Y
@@ -22,7 +22,7 @@ services:
 
   # RabbitMQ Message Broker
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3.13-management
     container_name: volunteerhub-rabbitmq
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
@@ -118,7 +118,7 @@ services:
 
   # MailHog — email testing
   mailhog:
-    image: mailhog/mailhog
+    image: mailhog/mailhog:v1.0.1
     container_name: volunteerhub-mailhog
     ports:
       - "${MAILHOG_SMTP_PORT:-1025}:1025"   # SMTP

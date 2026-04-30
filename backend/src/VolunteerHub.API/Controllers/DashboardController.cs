@@ -7,7 +7,7 @@ namespace VolunteerHub.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Roles = "Admin,SuperAdmin")]
 public class DashboardController : ControllerBase
 {
     private readonly IDashboardService _dashboardService;

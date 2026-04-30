@@ -391,6 +391,7 @@ public class PaymentIntentResponseDto
     public string ClientSecret { get; set; } = string.Empty;
     public string PaymentIntentId { get; set; } = string.Empty;
     public string PublishableKey { get; set; } = string.Empty;
+    public string PaymentStatus { get; set; } = "RequiresPaymentMethod";
 }
 
 public class StripeDonationCreateDto
@@ -448,11 +449,33 @@ public class CountryDto : BaseDto
     public string Code { get; set; } = string.Empty;
 }
 
+public class CountryUpsertDto
+{
+    [Required, MaxLength(100)]
+    public string Name { get; set; } = string.Empty;
+
+    [Required, MaxLength(10)]
+    public string Code { get; set; } = string.Empty;
+}
+
 public class CityDto : BaseDto
 {
     public string Name { get; set; } = string.Empty;
     public string? PostalCode { get; set; }
+    public int CountryId { get; set; }
     public string CountryName { get; set; } = string.Empty;
+}
+
+public class CityUpsertDto
+{
+    [Required, MaxLength(100)]
+    public string Name { get; set; } = string.Empty;
+
+    [MaxLength(20)]
+    public string? PostalCode { get; set; }
+
+    [Range(1, int.MaxValue)]
+    public int CountryId { get; set; }
 }
 
 public class EventCategoryDto : BaseDto
@@ -467,6 +490,33 @@ public class BlogCategoryDto : BaseDto
 {
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? Color { get; set; }
+}
+
+public class SkillUpsertDto
+{
+    [Required, MaxLength(100)]
+    public string Name { get; set; } = string.Empty;
+
+    [MaxLength(500)]
+    public string? Description { get; set; }
+
+    [MaxLength(500)]
+    public string? IconUrl { get; set; }
+
+    [MaxLength(20)]
+    public string? Color { get; set; }
+}
+
+public class BlogCategoryUpsertDto
+{
+    [Required, MaxLength(100)]
+    public string Name { get; set; } = string.Empty;
+
+    [MaxLength(500)]
+    public string? Description { get; set; }
+
+    [MaxLength(20)]
     public string? Color { get; set; }
 }
 

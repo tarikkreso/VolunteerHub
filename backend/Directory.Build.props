@@ -3,5 +3,6 @@
     <BuildInParallel>false</BuildInParallel>
     <UseSharedCompilation>false</UseSharedCompilation>
     <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 </Project>

@@ -6,7 +6,6 @@ using VolunteerHub.Application.Services.Interfaces;
 using VolunteerHub.Domain.Entities;
 using VolunteerHub.Domain.Interfaces;
 using VolunteerHub.Infrastructure.Data;
-using VolunteerHub.Infrastructure.ML;
 using VolunteerHub.Infrastructure.Repositories;
 using VolunteerHub.Infrastructure.Services;
 
@@ -59,8 +58,6 @@ public static class DependencyInjection
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IRecommendationService, RecommendationService>();
-
-        services.AddHostedService<RecommendationTrainingService>();
 
         return services;
     }

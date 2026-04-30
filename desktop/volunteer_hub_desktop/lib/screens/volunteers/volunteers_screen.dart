@@ -444,7 +444,7 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                                           fontSize: 14,
                                           fontWeight: FontWeight.w500)),
                                   subtitle: Text(
-                                      '${_fmtDate(h['shiftStartTime'] ?? h['createdAt'])}',
+                                      _fmtDate(h['shiftStartTime'] ?? h['createdAt']),
                                       style: const TextStyle(fontSize: 12)),
                                   trailing: Row(
                                       mainAxisSize: MainAxisSize.min,

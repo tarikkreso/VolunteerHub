@@ -370,8 +370,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       obscureText: true,
                       validator: (v) {
                         if (!changePassword) return null;
-                        if (v == null || v.isEmpty)
+                        if (v == null || v.isEmpty) {
                           return 'Unesite trenutnu lozinku';
+                        }
                         return null;
                       },
                     ),
@@ -383,10 +384,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       obscureText: true,
                       validator: (v) {
                         if (!changePassword) return null;
-                        if (v == null || v.isEmpty)
+                        if (v == null || v.isEmpty) {
                           return 'Unesite novu lozinku';
-                        if (v.length < 6)
+                        }
+                        if (v.length < 6) {
                           return 'Lozinka mora imati najmanje 6 znakova';
+                        }
                         return null;
                       },
                     ),

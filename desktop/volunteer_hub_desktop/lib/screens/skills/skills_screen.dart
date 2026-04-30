@@ -50,7 +50,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
+              color: Colors.blue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -316,7 +316,7 @@ class _SkillsScreenState extends State<SkillsScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
         }
       }
     }

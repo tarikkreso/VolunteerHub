@@ -140,6 +140,8 @@ class ApiService {
           queryParameters: {'page': page, 'pageSize': pageSize});
   Future<Response> createPaymentIntent(Map<String, dynamic> data) =>
       post('${ApiConfig.donations}/create-payment-intent', data: data);
+  Future<Response> getDonationByPaymentIntent(String paymentIntentId) =>
+      get('${ApiConfig.donations}/payment-intent/$paymentIntentId');
   Future<Response> getRecentDonations({int count = 10}) =>
       get('${ApiConfig.donations}/recent', queryParameters: {'count': count});
 

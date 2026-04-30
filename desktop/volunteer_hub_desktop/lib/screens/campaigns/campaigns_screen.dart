@@ -241,9 +241,10 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
                             : 'Kampanja uspješno kreirana')));
                   }
                 } catch (e) {
-                  if (mounted)
+                  if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(_extractErrorMessage(e))));
+                  }
                 }
               },
               child: Text(isEdit ? 'Spremi' : 'Kreiraj'),
@@ -277,13 +278,15 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
       try {
         await _api.deleteCampaign(id);
         _load();
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(const SnackBar(content: Text('Kampanja obrisana')));
+        }
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
+              const SnackBar(content: Text('Došlo je do greške. Pokušajte ponovo.')));
+        }
       }
     }
   }
@@ -487,11 +490,13 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
           return message.toString();
         }
       }
-      if (statusCode == 401)
+      if (statusCode == 401) {
         return 'Sesija je istekla. Molimo prijavite se ponovo.';
+      }
       if (statusCode == 403) return 'Nemate dozvolu za ovu akciju.';
-      if (statusCode != null)
+      if (statusCode != null) {
         return 'Greška servera ($statusCode). Pokušajte ponovo.';
+      }
       if (error.type == DioExceptionType.connectionError ||
           error.type == DioExceptionType.connectionTimeout) {
         return 'Nije moguće povezati se sa serverom.';
