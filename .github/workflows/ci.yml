@@ -12,11 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+
       - name: Restore backend
         run: dotnet restore backend/VolunteerHub.sln
+
       - name: Build backend
         run: dotnet build backend/VolunteerHub.sln --configuration Release --no-restore
 
@@ -25,18 +28,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+
       - name: Mobile pub get
         working-directory: mobile/volunteer_hub_mobile
         run: flutter pub get
+
       - name: Mobile analyze
         working-directory: mobile/volunteer_hub_mobile
         run: dart analyze lib
+
       - name: Desktop pub get
         working-directory: desktop/volunteer_hub_desktop
         run: flutter pub get
+
       - name: Desktop analyze
         working-directory: desktop/volunteer_hub_desktop
         run: dart analyze lib
@@ -46,23 +54,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+
+      - name: Mobile pub get
+        working-directory: mobile/volunteer_hub_mobile
+        run: flutter pub get
+
       - name: Build APK
         working-directory: mobile/volunteer_hub_mobile
         run: flutter build apk --release --dart-define=API_URL=http://10.0.2.2:7000/api
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: volunteerhub-android-apk
+          path: mobile/volunteer_hub_mobile/build/app/outputs/flutter-apk/app-release.apk
 
   windows-release:
     name: Windows release build
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
+
+      - name: Desktop pub get
+        working-directory: desktop/volunteer_hub_desktop
+        run: flutter pub get
+
       - name: Build Windows
         working-directory: desktop/volunteer_hub_desktop
         run: flutter build windows --release --dart-define=API_URL=http://localhost:7000/api
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: volunteerhub-windows-release
+          path: desktop/volunteer_hub_desktop/build/windows/x64/runner/Release/
