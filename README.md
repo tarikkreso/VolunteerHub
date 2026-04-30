@@ -164,34 +164,7 @@ flutter run --dart-define=API_URL=http://10.0.2.2:7000/api
 
 Za Android emulator koristi se `10.0.2.2`, a za Windows `localhost`.
 
-## Build za predaju
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-release.ps1
-```
-
-Izlazi:
-
-- APK: `mobile/volunteer_hub_mobile/build/app/outputs/flutter-apk/app-release.apk`
-- Windows release: `desktop/volunteer_hub_desktop/build/windows/x64/runner/Release/`
-
-Ako je potrebno pakovanje artefakata:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-builds.ps1 -Password "<your-password>"
-```
-
-## Predajni artefakti
-
-Prema uputama projekta, prije predaje provjeriti da GitHub repo sadrzi:
-
-- source code
-- `docker-compose.yml`
-- `README.md`
-- `.env.example`
-- `recommender-dokumentacija.pdf`
-- build artefakte koje trazis za predaju:
-  `app-release.apk` i Windows `Release` folder kroz pripremljenu arhivu ako ih predajes kroz repo
 
 ## API i funkcionalni pregled
 
