@@ -753,8 +753,8 @@ class _HomeTabState extends State<_HomeTab> {
             item['eventImageUrl'] ??
             item['campaignImageUrl'])
         ?.toString();
-    if (raw == null || raw.isEmpty) return null;
-    return raw.startsWith('http') ? raw : '${ApiService().baseUrl}$raw';
+    if (raw == null || raw.trim().isEmpty) return null;
+    return ApiService().resolveFileUrl(raw);
   }
 }
 

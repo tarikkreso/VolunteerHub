@@ -16,6 +16,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   final _api = ApiService();
   Map<String, dynamic>? _event;
   List<dynamic> _shifts = [];
+  List<Map<String, dynamic>> _activeRegistrations = [];
   Set<int> _registeredShiftIds = {};
   final Set<int> _loadingShiftIds = {};
   bool _loading = false;
@@ -55,10 +56,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ? (regsData['items'] as List? ?? [])
           : (regsData is List ? regsData : []);
       final regIds = <int>{};
+      final activeRegistrations = <Map<String, dynamic>>[];
       for (final r in registrations) {
-        final status = r['status'] as String?;
-        if (status == 'Rejected' || status == 'Cancelled') continue;
-        final sid = r['shiftId'];
+        final reg = Map<String, dynamic>.from(r as Map);
+        if (!_blocksNewRegistration(reg)) continue;
+        activeRegistrations.add(reg);
+        final sid = reg['shiftId'];
         if (sid is int) regIds.add(sid);
       }
       final now = DateTime.now();
@@ -66,14 +69,22 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         final end = DateTime.tryParse(s['endTime'] ?? '')?.toLocal();
         return end == null || end.isAfter(now);
       }).toList();
-      if (mounted) setState(() { _shifts = activeShifts; _registeredShiftIds = regIds; });
+      if (mounted) setState(() { _shifts = activeShifts; _registeredShiftIds = regIds; _activeRegistrations = activeRegistrations; });
     } catch (_) {}
   }
 
   Future<void> _register(int shiftId) async {
+    final shift = _shiftById(shiftId);
+    final conflict = shift == null ? null : _findOverlappingRegistration(shift);
+    if (conflict != null) {
+      _showShiftOverlapMessage(conflict);
+      return;
+    }
+
     setState(() => _loadingShiftIds.add(shiftId));
     try {
       await _api.registerForShift(shiftId);
+      if (shift != null) _rememberRegistration(shift);
       setState(() => _registeredShiftIds.add(shiftId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -88,6 +99,58 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       }
     }
     if (mounted) setState(() => _loadingShiftIds.remove(shiftId));
+  }
+
+  Map<String, dynamic>? _shiftById(int shiftId) {
+    for (final shift in _shifts) {
+      final map = Map<String, dynamic>.from(shift as Map);
+      if (map['id'] == shiftId) return map;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _findOverlappingRegistration(Map<String, dynamic> shift) {
+    final newStart = _parseDate(shift['startTime']);
+    final newEnd = _parseDate(shift['endTime']);
+    final newShiftId = shift['id'];
+    if (newStart == null || newEnd == null) return null;
+
+    for (final registration in _activeRegistrations) {
+      if (registration['shiftId'] == newShiftId) continue;
+      final existingStart = _parseDate(registration['shiftStartTime']);
+      final existingEnd = _parseDate(registration['shiftEndTime']);
+      if (existingStart == null || existingEnd == null) continue;
+      if (newStart.isBefore(existingEnd) && newEnd.isAfter(existingStart)) {
+        return registration;
+      }
+    }
+    return null;
+  }
+
+  bool _blocksNewRegistration(Map<String, dynamic> registration) {
+    final status = registration['status']?.toString();
+    return status != 'Rejected' && status != 'Cancelled' && status != 'Completed';
+  }
+
+  void _rememberRegistration(Map<String, dynamic> shift) {
+    _activeRegistrations.add({
+      'shiftId': shift['id'],
+      'shiftName': shift['name'],
+      'eventTitle': _event?['title'],
+      'shiftStartTime': shift['startTime'],
+      'shiftEndTime': shift['endTime'],
+      'status': 'Registered',
+    });
+  }
+
+  void _showShiftOverlapMessage(Map<String, dynamic> conflict) {
+    final name = (conflict['eventTitle'] ?? conflict['shiftName'] ?? 'postojeću smjenu').toString();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Ne možete se prijaviti na smjenu u isto vrijeme. Prvo otkažite "$name" u sekciji Smjene.'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
@@ -247,5 +310,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       final d = DateTime.parse(iso);
       return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
     } catch (_) { return iso; }
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString())?.toLocal();
   }
 }

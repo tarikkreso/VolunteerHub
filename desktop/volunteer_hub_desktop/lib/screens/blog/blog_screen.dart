@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../services/api_service.dart';
 
 class BlogScreen extends StatefulWidget {
@@ -79,11 +80,7 @@ class _BlogScreenState extends State<BlogScreen> {
                         ),
                         trailing:
                             Row(mainAxisSize: MainAxisSize.min, children: [
-                          if (published &&
-                              (p['imageUrl'] ?? '')
-                                  .toString()
-                                  .trim()
-                                  .isNotEmpty)
+                          if (published && _imageUrl(p) != null)
                             IconButton(
                               icon: const Icon(Icons.image, size: 20),
                               tooltip: 'Pregled slike objave',
@@ -122,6 +119,7 @@ class _BlogScreenState extends State<BlogScreen> {
     final imageUrl = TextEditingController(text: existing?['imageUrl'] ?? '');
     final tags = TextEditingController(text: existing?['tags'] ?? '');
     bool isPublished = existing?['isPublished'] ?? false;
+    bool uploadingImage = false;
     final formKey = GlobalKey<FormState>();
 
     showDialog(
@@ -164,11 +162,60 @@ class _BlogScreenState extends State<BlogScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: imageUrl,
-                    decoration: const InputDecoration(
-                        labelText: 'URL slike (opcionalno)'),
-                  ),
+                  Row(children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: imageUrl,
+                        decoration: const InputDecoration(
+                            labelText: 'Slika objave',
+                            hintText: 'https://... ili /uploads/blog/...'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: uploadingImage
+                          ? null
+                          : () async {
+                              final picked =
+                                  await FilePicker.platform.pickFiles(
+                                type: FileType.image,
+                                allowMultiple: false,
+                              );
+                              final path = picked?.files.single.path;
+                              if (path == null) return;
+
+                              setS(() => uploadingImage = true);
+                              try {
+                                final res = await _api.uploadBlogImage(path);
+                                final data = res.data is Map
+                                    ? res.data as Map
+                                    : const {};
+                                final url = data['imageUrl']?.toString();
+                                if (url != null && url.isNotEmpty) {
+                                  setS(() => imageUrl.text = url);
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Upload slike objave nije uspio.')),
+                                  );
+                                }
+                              } finally {
+                                setS(() => uploadingImage = false);
+                              }
+                            },
+                      icon: uploadingImage
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.upload),
+                      label: Text(uploadingImage ? 'Upload...' : 'Upload'),
+                    ),
+                  ]),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: tags,
@@ -240,10 +287,10 @@ class _BlogScreenState extends State<BlogScreen> {
           child: SingleChildScrollView(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (post['imageUrl'] != null && post['imageUrl'] != '')
+              if (_imageUrl(post) != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Image.network(post['imageUrl'],
+                  child: Image.network(_imageUrl(post)!,
                       height: 200,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => const SizedBox()),
@@ -343,8 +390,8 @@ class _BlogScreenState extends State<BlogScreen> {
   }
 
   void _showPostImagePreview(Map<String, dynamic> post) {
-    final url = (post['imageUrl'] ?? '').toString().trim();
-    if (url.isEmpty) return;
+    final url = _imageUrl(post);
+    if (url == null) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -366,6 +413,12 @@ class _BlogScreenState extends State<BlogScreen> {
         ],
       ),
     );
+  }
+
+  String? _imageUrl(Map<String, dynamic> post) {
+    final raw = (post['imageUrl'] ?? post['featuredImageUrl'])?.toString();
+    if (raw == null || raw.trim().isEmpty) return null;
+    return _api.resolveFileUrl(raw);
   }
 
   Future<void> _delete(int id) async {

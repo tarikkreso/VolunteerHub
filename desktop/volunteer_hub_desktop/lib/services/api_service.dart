@@ -27,6 +27,45 @@ class ApiService {
   }
 
   String? get token => _token;
+  String get baseUrl => ApiConfig.baseUrl;
+
+  String resolveFileUrl(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return value;
+
+    final apiUri = Uri.tryParse(ApiConfig.baseUrl);
+    String normalizePath(String path) {
+      final withSlash = path.startsWith('/') ? path : '/$path';
+      return withSlash.startsWith('/api/uploads/')
+          ? withSlash.substring(4)
+          : withSlash;
+    }
+
+    final parsed = Uri.tryParse(value);
+    if (parsed != null && parsed.hasScheme) {
+      final apiHost = apiUri?.host.toLowerCase();
+      final host = parsed.host.toLowerCase();
+      final isLocal = host == 'localhost' || host == '127.0.0.1' || host == '0.0.0.0';
+      if (apiUri != null && apiHost != null && isLocal && apiHost != host) {
+        return parsed
+            .replace(
+              scheme: apiUri.scheme,
+              host: apiUri.host,
+              port: apiUri.hasPort ? apiUri.port : null,
+              path: normalizePath(parsed.path),
+            )
+            .toString();
+      }
+      if (parsed.path.startsWith('/api/uploads/')) {
+        return parsed.replace(path: normalizePath(parsed.path)).toString();
+      }
+      return value;
+    }
+
+    final path = normalizePath(value);
+    if (apiUri == null) return path;
+    return apiUri.replace(path: path, query: null, fragment: null).toString();
+  }
 
   Future<Response> post(String path, {dynamic data}) =>
       _dio.post(path, data: data);
@@ -112,6 +151,13 @@ class ApiService {
       'file': await MultipartFile.fromFile(path),
     });
     return _dio.post('${ApiConfig.users}/upload-image', data: formData);
+  }
+
+  Future<Response> uploadBlogImage(String path) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(path),
+    });
+    return _dio.post('${ApiConfig.blogPosts}/upload-image', data: formData);
   }
 
   // ── Campaigns ──

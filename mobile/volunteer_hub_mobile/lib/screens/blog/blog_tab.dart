@@ -233,7 +233,7 @@ class _BlogTabState extends State<BlogTab> {
 
   String? _imageUrl(Map<String, dynamic> post) {
     final raw = (post['imageUrl'] ?? post['featuredImageUrl'])?.toString();
-    if (raw == null || raw.isEmpty) return null;
-    return raw.startsWith('http') ? raw : '${_api.baseUrl}$raw';
+    if (raw == null || raw.trim().isEmpty) return null;
+    return _api.resolveFileUrl(raw);
   }
 }

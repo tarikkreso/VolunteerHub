@@ -117,7 +117,7 @@ class _BlogPostDetailScreenState extends State<BlogPostDetailScreen> {
 
   String? get _imageUrl {
     final raw = (_post?['imageUrl'] ?? _post?['featuredImageUrl'])?.toString();
-    if (raw == null || raw.isEmpty) return null;
-    return raw.startsWith('http') ? raw : '${ApiService().baseUrl}$raw';
+    if (raw == null || raw.trim().isEmpty) return null;
+    return ApiService().resolveFileUrl(raw);
   }
 }

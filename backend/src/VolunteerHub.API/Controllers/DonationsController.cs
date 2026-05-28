@@ -67,6 +67,12 @@ public class DonationsController : ControllerBase
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(request.IdempotencyKey) &&
+                Request.Headers.TryGetValue("Idempotency-Key", out var idempotencyHeader))
+            {
+                request.IdempotencyKey = idempotencyHeader.FirstOrDefault();
+            }
+
             int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
             var result = await _donationService.CreatePaymentIntentAsync(request, userId);
             return Ok(result);
