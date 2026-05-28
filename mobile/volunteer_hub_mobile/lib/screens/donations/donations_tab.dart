@@ -538,14 +538,15 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
     });
 
     try {
+      final idempotencyKey = _newIdempotencyKey(amount);
       final response = await widget.api.createPaymentIntent({
         'amount': amount,
         'campaignId': widget.campaign['id'],
         'isAnonymous': _anonymous,
         'donorName': donorName,
         'message': message.isEmpty ? null : message,
-        'idempotencyKey': _newIdempotencyKey(amount),
-      });
+        'idempotencyKey': idempotencyKey,
+      }, idempotencyKey: idempotencyKey);
       final data = response.data;
       final clientSecret =
           data is Map ? data['clientSecret']?.toString() : null;

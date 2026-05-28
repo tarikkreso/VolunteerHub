@@ -269,9 +269,20 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       child: Row(children: [
         Icon(icon, size: 20, color: Colors.grey[600]),
         const SizedBox(width: 12),
-        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-        const Spacer(),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+        SizedBox(
+          width: 72,
+          child: Text(label,
+              style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            softWrap: true,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
       ]),
     );
   }
@@ -443,11 +454,15 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
   // --- HELPERS ---
   Widget _buildAvatar(Map<String, dynamic>? user, {double radius = 24}) {
     final url = user?['profileImageUrl'] as String?;
-    final initials = '${(user?['firstName'] ?? 'V')[0]}${(user?['lastName'] ?? '')[0]}'.toUpperCase();
+    final firstName = (user?['firstName'] ?? 'V').toString();
+    final lastName = (user?['lastName'] ?? '').toString();
+    final initials =
+        '${firstName.isNotEmpty ? firstName[0] : 'V'}${lastName.isNotEmpty ? lastName[0] : ''}'
+            .toUpperCase();
     if (url != null && url.isNotEmpty) {
       return CircleAvatar(
         radius: radius,
-        backgroundImage: NetworkImage(url),
+        backgroundImage: NetworkImage(_api.resolveFileUrl(url)),
         onBackgroundImageError: (_, __) {},
         child: null,
       );

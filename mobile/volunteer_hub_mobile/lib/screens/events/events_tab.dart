@@ -469,13 +469,18 @@ class _EventsTabState extends State<EventsTab> {
 
     // Load user's current registrations to know which shifts they already joined
     Set<int> registeredShiftIds = {};
+    List<Map<String, dynamic>> activeRegistrations = [];
     try {
       final regRes = await _api.getMyShifts();
-      final regs = regRes.data is List ? regRes.data : [];
+      final data = regRes.data;
+      final regs = data is Map
+          ? (data['items'] as List? ?? [])
+          : (data is List ? data : []);
       for (final r in regs) {
-        final status = r['status'] as String?;
-        if (status == 'Rejected' || status == 'Cancelled') continue;
-        final sid = r['shiftId'];
+        final reg = Map<String, dynamic>.from(r as Map);
+        if (!_registrationBlocksNewShift(reg)) continue;
+        activeRegistrations.add(reg);
+        final sid = reg['shiftId'];
         if (sid is int) registeredShiftIds.add(sid);
       }
     } catch (_) {}
@@ -486,6 +491,7 @@ class _EventsTabState extends State<EventsTab> {
         event: e,
         shifts: shifts,
         registeredShiftIds: registeredShiftIds,
+        activeRegistrations: activeRegistrations,
       ),
     ));
 
@@ -651,16 +657,23 @@ class _EventsTabState extends State<EventsTab> {
       ),
     );
   }
+
+  bool _registrationBlocksNewShift(Map<String, dynamic> registration) {
+    final status = registration['status']?.toString();
+    return status != 'Rejected' && status != 'Cancelled' && status != 'Completed';
+  }
 }
 
 class _EventDetailScreen extends StatefulWidget {
   final Map<String, dynamic> event;
   final List<dynamic> shifts;
   final Set<int> registeredShiftIds;
+  final List<Map<String, dynamic>> activeRegistrations;
   const _EventDetailScreen(
       {required this.event,
       required this.shifts,
-      required this.registeredShiftIds});
+      required this.registeredShiftIds,
+      required this.activeRegistrations});
 
   @override
   State<_EventDetailScreen> createState() => _EventDetailScreenState();
@@ -668,18 +681,28 @@ class _EventDetailScreen extends StatefulWidget {
 
 class _EventDetailScreenState extends State<_EventDetailScreen> {
   late Set<int> _registeredShiftIds;
+  late List<Map<String, dynamic>> _activeRegistrations;
   final Set<int> _loadingShiftIds = {};
 
   @override
   void initState() {
     super.initState();
     _registeredShiftIds = Set.from(widget.registeredShiftIds);
+    _activeRegistrations = List<Map<String, dynamic>>.from(widget.activeRegistrations);
   }
 
   Future<void> _register(int shiftId) async {
+    final shift = _shiftById(shiftId);
+    final conflict = shift == null ? null : _findOverlappingRegistration(shift);
+    if (conflict != null) {
+      _showShiftOverlapMessage(conflict);
+      return;
+    }
+
     setState(() => _loadingShiftIds.add(shiftId));
     try {
       await ApiService().registerForShift(shiftId);
+      if (shift != null) _rememberRegistration(shift);
       _registeredShiftIds.add(shiftId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -701,6 +724,53 @@ class _EventDetailScreenState extends State<_EventDetailScreen> {
       }
     }
     if (mounted) setState(() => _loadingShiftIds.remove(shiftId));
+  }
+
+  Map<String, dynamic>? _shiftById(int shiftId) {
+    for (final shift in widget.shifts) {
+      final map = Map<String, dynamic>.from(shift as Map);
+      if (map['id'] == shiftId) return map;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _findOverlappingRegistration(Map<String, dynamic> shift) {
+    final newStart = _parseDate(shift['startTime']);
+    final newEnd = _parseDate(shift['endTime']);
+    final newShiftId = shift['id'];
+    if (newStart == null || newEnd == null) return null;
+
+    for (final registration in _activeRegistrations) {
+      if (registration['shiftId'] == newShiftId) continue;
+      final existingStart = _parseDate(registration['shiftStartTime']);
+      final existingEnd = _parseDate(registration['shiftEndTime']);
+      if (existingStart == null || existingEnd == null) continue;
+      if (newStart.isBefore(existingEnd) && newEnd.isAfter(existingStart)) {
+        return registration;
+      }
+    }
+    return null;
+  }
+
+  void _rememberRegistration(Map<String, dynamic> shift) {
+    _activeRegistrations.add({
+      'shiftId': shift['id'],
+      'shiftName': shift['name'],
+      'eventTitle': widget.event['title'],
+      'shiftStartTime': shift['startTime'],
+      'shiftEndTime': shift['endTime'],
+      'status': 'Registered',
+    });
+  }
+
+  void _showShiftOverlapMessage(Map<String, dynamic> conflict) {
+    final name = (conflict['eventTitle'] ?? conflict['shiftName'] ?? 'postojeću smjenu').toString();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Ne možete se prijaviti na smjenu u isto vrijeme. Prvo otkažite "$name" u sekciji Smjene.'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
@@ -932,5 +1002,11 @@ class _EventDetailScreenState extends State<_EventDetailScreen> {
     } catch (_) {
       return iso;
     }
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString())?.toLocal();
   }
 }

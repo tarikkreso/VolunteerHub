@@ -12,6 +12,44 @@ class ApiService {
   String get baseUrl => ApiConfig.baseUrl;
   VoidCallback? onUnauthorized;
 
+  String resolveFileUrl(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return value;
+
+    final apiUri = Uri.tryParse(ApiConfig.baseUrl);
+    String normalizePath(String path) {
+      final withSlash = path.startsWith('/') ? path : '/$path';
+      return withSlash.startsWith('/api/uploads/')
+          ? withSlash.substring(4)
+          : withSlash;
+    }
+
+    final parsed = Uri.tryParse(value);
+    if (parsed != null && parsed.hasScheme) {
+      final apiHost = apiUri?.host.toLowerCase();
+      final host = parsed.host.toLowerCase();
+      final isLocal = host == 'localhost' || host == '127.0.0.1' || host == '0.0.0.0';
+      if (apiUri != null && apiHost != null && isLocal && apiHost != host) {
+        return parsed
+            .replace(
+              scheme: apiUri.scheme,
+              host: apiUri.host,
+              port: apiUri.hasPort ? apiUri.port : null,
+              path: normalizePath(parsed.path),
+            )
+            .toString();
+      }
+      if (parsed.path.startsWith('/api/uploads/')) {
+        return parsed.replace(path: normalizePath(parsed.path)).toString();
+      }
+      return value;
+    }
+
+    final path = normalizePath(value);
+    if (apiUri == null) return path;
+    return apiUri.replace(path: path, query: null, fragment: null).toString();
+  }
+
   ApiService._internal() {
     _dio = Dio(BaseOptions(
       baseUrl: ApiConfig.baseUrl,
@@ -138,8 +176,17 @@ class ApiService {
           {int page = 1, int pageSize = 20}) =>
       get('${ApiConfig.donations}/by-campaign/$campaignId',
           queryParameters: {'page': page, 'pageSize': pageSize});
-  Future<Response> createPaymentIntent(Map<String, dynamic> data) =>
-      post('${ApiConfig.donations}/create-payment-intent', data: data);
+  Future<Response> createPaymentIntent(
+    Map<String, dynamic> data, {
+    String? idempotencyKey,
+  }) =>
+      _dio.post(
+        '${ApiConfig.donations}/create-payment-intent',
+        data: data,
+        options: idempotencyKey == null || idempotencyKey.isEmpty
+            ? null
+            : Options(headers: {'Idempotency-Key': idempotencyKey}),
+      );
   Future<Response> getDonationByPaymentIntent(String paymentIntentId) =>
       get('${ApiConfig.donations}/payment-intent/$paymentIntentId');
   Future<Response> getRecentDonations({int count = 10}) =>

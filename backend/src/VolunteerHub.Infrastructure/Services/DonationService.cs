@@ -98,9 +98,6 @@ public class DonationService : IDonationService
         if (!campaign.IsActive || campaign.EndDate < DateTime.UtcNow)
             throw new InvalidOperationException("Donacija nije moguca jer kampanja nije aktivna.");
 
-        if (string.IsNullOrWhiteSpace(dto.IdempotencyKey))
-            throw new InvalidOperationException("Idempotency kljuc je obavezan za sigurnu obradu donacije.");
-
         var stripeKey = GetStripeSetting("SecretKey", "STRIPE_SECRET_KEY");
         var publishableKey = GetStripeSetting("PublishableKey", "STRIPE_PUBLISHABLE_KEY");
         if (string.IsNullOrWhiteSpace(stripeKey) || string.IsNullOrWhiteSpace(publishableKey))
@@ -416,6 +413,6 @@ public class DonationService : IDonationService
         if (!string.IsNullOrWhiteSpace(supplied))
             return $"donation:{userId ?? 0}:{dto.CampaignId}:{supplied}";
 
-        throw new InvalidOperationException("Idempotency kljuc je obavezan za sigurnu obradu donacije.");
+        return $"donation:{userId ?? 0}:{dto.CampaignId}:{Guid.NewGuid():N}";
     }
 }

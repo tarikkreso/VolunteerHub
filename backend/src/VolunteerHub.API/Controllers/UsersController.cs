@@ -77,9 +77,8 @@ public class UsersController : ControllerBase
             return BadRequest(new { message = "Slika ne smije biti veca od 5 MB." });
 
         var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
-        var allowedMimeTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (!allowedExtensions.Contains(ext) || !allowedMimeTypes.Contains(file.ContentType.ToLowerInvariant()))
+        if (!allowedExtensions.Contains(ext) || !HasAllowedImageContentType(file.ContentType))
             return BadRequest(new { message = "Dozvoljeni formati: jpg, jpeg, png, webp, gif." });
 
         if (!await HasAllowedImageSignatureAsync(file, ext))
@@ -118,5 +117,15 @@ public class UsersController : ControllerBase
                        header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50,
             _ => false
         };
+    }
+
+    private static bool HasAllowedImageContentType(string? contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType) ||
+            contentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var allowedMimeTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+        return allowedMimeTypes.Contains(contentType.ToLowerInvariant());
     }
 }

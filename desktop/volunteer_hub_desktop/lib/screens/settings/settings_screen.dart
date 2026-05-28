@@ -62,7 +62,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Theme.of(context).primaryColor.withValues(alpha: 0.15),
                   backgroundImage:
                       (user?['profileImageUrl'] ?? '').toString().isNotEmpty
-                          ? NetworkImage(user!['profileImageUrl'].toString())
+                          ? NetworkImage(_api.resolveFileUrl(
+                              user!['profileImageUrl'].toString()))
                           : null,
                   child: (user?['profileImageUrl'] ?? '').toString().isEmpty
                       ? Text(
