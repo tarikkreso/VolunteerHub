@@ -35,7 +35,7 @@ public class UserCreateDto
     [Required, EmailAddress, MaxLength(256)]
     public string Email { get; set; } = string.Empty;
 
-    [Required, MinLength(6), MaxLength(128)]
+    [Required, MinLength(4), MaxLength(128)]
     public string Password { get; set; } = string.Empty;
 
     [Phone, MaxLength(30)]
@@ -69,13 +69,28 @@ public class UserUpdateDto
 
 public class UpdateProfileRequestDto
 {
+    [MaxLength(100)]
     public string? FirstName { get; set; }
+
+    [MaxLength(100)]
     public string? LastName { get; set; }
+
+    [Phone, MaxLength(30)]
     public string? PhoneNumber { get; set; }
+
+    [EmailAddress, MaxLength(256)]
     public string? Email { get; set; }
+
+    [MaxLength(500)]
     public string? ProfileImageUrl { get; set; }
+
+    [MaxLength(1000)]
     public string? Bio { get; set; }
+
+    [MaxLength(128)]
     public string? OldPassword { get; set; }
+
+    [MinLength(4), MaxLength(128)]
     public string? NewPassword { get; set; }
 }
 

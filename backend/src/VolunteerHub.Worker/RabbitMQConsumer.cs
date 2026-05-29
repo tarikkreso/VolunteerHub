@@ -422,8 +422,8 @@ public class RabbitMQConsumer : BackgroundService
         await SendEmailAsync(new EmailMessage
         {
             To = reminder.UserEmail,
-            Subject = $"Podsjetnik: Smjena '{reminder.ShiftName}' uskoro počinje",
-            Body = $"<h2>Podsjetnik na smjenu</h2><p>Vaša smjena <strong>{reminder.ShiftName}</strong> počinje u {reminder.ShiftStartTime:dd.MM.yyyy HH:mm}.</p><p>Ne zaboravite se prijaviti (check-in) na vrijeme!</p>",
+            Subject = $"Podsjetnik: Smjena '{reminder.ShiftName}' uskoro pocinje",
+            Body = $"<h2>Podsjetnik na smjenu</h2><p>Vasa smjena <strong>{reminder.ShiftName}</strong> pocinje u {reminder.ShiftStartTime:dd.MM.yyyy HH:mm}.</p><p>Ne zaboravite se prijaviti (check-in) na vrijeme!</p>",
             IsHtml = true
         });
     }

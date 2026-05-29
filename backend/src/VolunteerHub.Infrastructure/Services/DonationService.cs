@@ -145,6 +145,8 @@ public class DonationService : IDonationService
         if (existingDonation != null)
             return MapDonation(existingDonation);
 
+        var verifiedPaymentIntent = await VerifyPaymentIntentAsync(dto);
+
         var campaign = await _context.Campaigns
             .Include(c => c.Organization)
             .FirstOrDefaultAsync(c => c.Id == dto.CampaignId);
@@ -163,7 +165,7 @@ public class DonationService : IDonationService
             DonorName = dto.DonorName,
             Message = dto.Message,
             StripePaymentIntentId = dto.PaymentIntentId,
-            StripeChargeId = dto.ChargeId,
+            StripeChargeId = dto.ChargeId ?? verifiedPaymentIntent.LatestChargeId,
             CampaignId = dto.CampaignId,
             UserId = userId
         };
@@ -405,6 +407,40 @@ public class DonationService : IDonationService
         return !string.IsNullOrWhiteSpace(configuredValue) && !configuredValue.Contains("your_", StringComparison.OrdinalIgnoreCase)
             ? configuredValue
             : Environment.GetEnvironmentVariable(environmentKey);
+    }
+
+    private async Task<PaymentIntent> VerifyPaymentIntentAsync(StripeDonationCreateDto dto)
+    {
+        var stripeKey = GetStripeSetting("SecretKey", "STRIPE_SECRET_KEY");
+        if (string.IsNullOrWhiteSpace(stripeKey))
+            throw new InvalidOperationException("Stripe nije konfigurisan.");
+
+        StripeConfiguration.ApiKey = stripeKey;
+        var service = new PaymentIntentService();
+        var paymentIntent = await service.GetAsync(dto.PaymentIntentId);
+
+        if (!string.Equals(paymentIntent.Status, "succeeded", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Stripe placanje nije uspjesno zavrseno.");
+
+        var currency = paymentIntent.Currency?.ToUpperInvariant() ?? string.Empty;
+        if (!string.Equals(currency, "BAM", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Stripe placanje nema ocekivanu valutu BAM.");
+
+        var paidAmount = paymentIntent.AmountReceived > 0
+            ? paymentIntent.AmountReceived / 100m
+            : paymentIntent.Amount / 100m;
+        if (paidAmount != dto.Amount)
+            throw new InvalidOperationException("Iznos Stripe placanja se ne podudara sa donacijom.");
+
+        if (paymentIntent.Metadata == null ||
+            !paymentIntent.Metadata.TryGetValue("campaignId", out var campaignIdValue) ||
+            !int.TryParse(campaignIdValue, out var campaignId) ||
+            campaignId != dto.CampaignId)
+        {
+            throw new InvalidOperationException("Stripe placanje nije vezano za odabranu kampanju.");
+        }
+
+        return paymentIntent;
     }
 
     private static string BuildPaymentIntentIdempotencyKey(PaymentIntentRequestDto dto, int? userId)
