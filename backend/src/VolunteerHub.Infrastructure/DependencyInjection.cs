@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddIdentityCore<ApplicationUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;
+                // Course demo credentials use password "test"; DTO validation is aligned to the same minimum.
                 options.Password.RequiredLength = 4;
                 options.Password.RequireDigit = false;
                 options.Password.RequireLowercase = false;

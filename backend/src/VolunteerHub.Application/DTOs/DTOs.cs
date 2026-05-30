@@ -35,7 +35,7 @@ public class UserCreateDto
     [Required, EmailAddress, MaxLength(256)]
     public string Email { get; set; } = string.Empty;
 
-    [Required, MinLength(6), MaxLength(128)]
+    [Required, MinLength(4), MaxLength(128)]
     public string Password { get; set; } = string.Empty;
 
     [Phone, MaxLength(30)]
@@ -69,13 +69,28 @@ public class UserUpdateDto
 
 public class UpdateProfileRequestDto
 {
+    [MaxLength(100)]
     public string? FirstName { get; set; }
+
+    [MaxLength(100)]
     public string? LastName { get; set; }
+
+    [Phone, MaxLength(30)]
     public string? PhoneNumber { get; set; }
+
+    [EmailAddress, MaxLength(256)]
     public string? Email { get; set; }
+
+    [MaxLength(500)]
     public string? ProfileImageUrl { get; set; }
+
+    [MaxLength(1000)]
     public string? Bio { get; set; }
+
+    [MaxLength(128)]
     public string? OldPassword { get; set; }
+
+    [MinLength(4), MaxLength(128)]
     public string? NewPassword { get; set; }
 }
 
@@ -328,6 +343,7 @@ public class CampaignDto : BaseDto
     public bool IsFeatured { get; set; }
     public int DonationCount { get; set; }
     public string? OrganizationName { get; set; }
+    public bool IsPaid { get; set; }
 }
 
 public class CampaignCreateDto
@@ -368,7 +384,7 @@ public class DonationDto : BaseDto
 
 public class PaymentIntentRequestDto
 {
-    [Range(0.5, 1000000)]
+    [Range(1, 1000000)]
     public decimal Amount { get; set; }
 
     [Required]
@@ -392,6 +408,7 @@ public class PaymentIntentResponseDto
     public string PaymentIntentId { get; set; } = string.Empty;
     public string PublishableKey { get; set; } = string.Empty;
     public string PaymentStatus { get; set; } = "RequiresPaymentMethod";
+    public bool IsPaid { get; set; }
 }
 
 public class StripeDonationCreateDto

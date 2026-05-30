@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 
@@ -28,7 +28,8 @@ class ApiService {
     if (parsed != null && parsed.hasScheme) {
       final apiHost = apiUri?.host.toLowerCase();
       final host = parsed.host.toLowerCase();
-      final isLocal = host == 'localhost' || host == '127.0.0.1' || host == '0.0.0.0';
+      final isLocal =
+          host == 'localhost' || host == '127.0.0.1' || host == '0.0.0.0';
       if (apiUri != null && apiHost != null && isLocal && apiHost != host) {
         return parsed
             .replace(
@@ -189,6 +190,8 @@ class ApiService {
       );
   Future<Response> getDonationByPaymentIntent(String paymentIntentId) =>
       get('${ApiConfig.donations}/payment-intent/$paymentIntentId');
+  Future<Response> syncDonationPaymentIntent(String paymentIntentId) =>
+      post('${ApiConfig.donations}/payment-intent/$paymentIntentId/sync');
   Future<Response> getRecentDonations({int count = 10}) =>
       get('${ApiConfig.donations}/recent', queryParameters: {'count': count});
 

@@ -10,6 +10,7 @@ public interface IDonationService
     Task<DonationDto?> GetByIdForUserAsync(int id, int userId, bool includeAll);
     Task<DonationDto?> GetByPaymentIntentForUserAsync(string paymentIntentId, int userId, bool includeAll);
     Task<PaymentIntentResponseDto> CreatePaymentIntentAsync(PaymentIntentRequestDto dto, int? userId);
+    Task<DonationDto> SyncStripePaymentAsync(string paymentIntentId, int userId, bool includeAll);
     Task<DonationDto> RecordStripePaymentAsync(StripeDonationCreateDto dto, int? userId);
     Task<DonationDto> RefundAsync(int donationId);
     Task<bool> MarkRefundedAsync(string? paymentIntentId, string? chargeId, decimal refundedAmount);

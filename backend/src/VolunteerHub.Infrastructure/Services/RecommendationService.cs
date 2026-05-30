@@ -27,18 +27,16 @@ public class RecommendationService : IRecommendationService
     // Skill-to-category keyword mappings for content-based matching
     private static readonly Dictionary<string, string[]> SkillCategoryMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Fizički rad"] = new[] { "okoliš", "sport", "čišćenje", "sadnja", "fizičk" },
-        ["Podučavanje"] = new[] { "edukacija", "radionice", "mentorstvo", "podučavanje", "škol" },
-        ["Prva pomoć"] = new[] { "zdravlje", "medicinska", "pomoć", "humanitarno", "prva" },
-        ["Vožnja"] = new[] { "transport", "dostava", "vožnja", "prevoz", "logistika" },
-        ["Kuhanje"] = new[] { "humanitarno", "hrana", "kuhanje", "obrok", "priprema" },
-        ["Jezik - Engleski"] = new[] { "edukacija", "jezik", "engleski", "prevođenje", "kultura" },
-        ["Jezik - Njemački"] = new[] { "edukacija", "jezik", "njemački", "prevođenje", "kultura" },
-        ["IT vještine"] = new[] { "edukacija", "it", "računar", "softver", "web", "dizajn" },
-        ["Socijalni rad"] = new[] { "humanitarno", "stariji", "socijalni", "pomoć", "ugrožen" },
+        ["Fizicki rad"] = new[] { "okolis", "sport", "ciscenje", "sadnja", "fizick" },
+        ["Poducavanje"] = new[] { "edukacija", "radionice", "mentorstvo", "poducavanje", "skol" },
+        ["Prva pomoc"] = new[] { "zdravlje", "medicinska", "pomoc", "humanitarno", "prva" },
+        ["Voznja"] = new[] { "transport", "dostava", "voznja", "prevoz", "logistika" },
+        ["IT vjestine"] = new[] { "edukacija", "it", "racunar", "softver", "web", "dizajn", "digitalno" },
         ["Fotografija"] = new[] { "kultura", "fotografij", "snimanje", "event", "manifestacij" },
         ["Marketing"] = new[] { "marketing", "promocij", "kultura", "event", "organizacij" },
-        ["Dizajn"] = new[] { "dizajn", "kreativ", "kultura", "web", "grafičk" }
+        ["Koordinacija tima"] = new[] { "koordinacija", "tim", "organizacija", "logistika" },
+        ["Rad sa djecom"] = new[] { "djeca", "ucenici", "edukacija", "skola", "radionice" },
+        ["Administracija"] = new[] { "administracija", "unos", "podaci", "priprema", "paketi" }
     };
 
     public RecommendationService(ApplicationDbContext context, ILogger<RecommendationService> logger)
@@ -192,7 +190,7 @@ public class RecommendationService : IRecommendationService
                         .ToList();
 
                     var reasons = matchedSkills.Any()
-                        ? $"Odgovara tvojim vještinama: {string.Join(", ", matchedSkills.Distinct().Take(3))}"
+                        ? $"Odgovara tvojim vjestinama: {string.Join(", ", matchedSkills.Distinct().Take(3))}"
                         : $"ML preporuka ({(prediction.Probability * 100):F0}% relevantnost)";
 
                     scored.Add((MapToEventDto(evt), prediction.Probability, reasons));
@@ -230,7 +228,7 @@ public class RecommendationService : IRecommendationService
 
         if (!userSkills.Any())
         {
-            // No skills — return featured/upcoming events as fallback
+            // No skills - return featured/upcoming events as fallback
             return await GetFallbackRecommendationsAsync(top);
         }
 
@@ -297,7 +295,7 @@ public class RecommendationService : IRecommendationService
                 if (descLower.Contains(skillLower) || titleLower.Contains(skillLower))
                     skillScore += 0.3;
 
-                // Weight by proficiency level (1-5 → 0.6-1.0)
+                // Weight by proficiency level (1-5 -> 0.6-1.0)
                 var profWeight = 0.6 + (us.ProficiencyLevel - 1) * 0.1;
                 skillScore *= profWeight;
 
@@ -321,8 +319,8 @@ public class RecommendationService : IRecommendationService
             if (score > 0.05)
             {
                 var reasons = matchedSkills.Any()
-                    ? $"Odgovara tvojim vještinama: {string.Join(", ", matchedSkills.Distinct())}"
-                    : "Preporučeno na osnovu tvojih interesovanja";
+                    ? $"Odgovara tvojim vjestinama: {string.Join(", ", matchedSkills.Distinct())}"
+                    : "Preporuceno na osnovu tvojih interesovanja";
 
                 scored.Add((MapToEventDto(evt), score, reasons));
             }
@@ -358,7 +356,7 @@ public class RecommendationService : IRecommendationService
         {
             Event = MapToEventDto(e),
             Score = Math.Round(0.5 - i * 0.05, 2),
-            ReasonTags = e.IsFeatured ? "Istaknuti događaj" : "Popularni događaj"
+            ReasonTags = e.IsFeatured ? "Istaknuti dogadjaj" : "Popularni dogadjaj"
         }).ToList();
     }
 

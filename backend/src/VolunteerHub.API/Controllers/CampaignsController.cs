@@ -22,14 +22,16 @@ public class CampaignsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResultDto<CampaignDto>>> GetAll([FromQuery] SearchRequestDto request)
     {
-        var result = await _campaignService.GetAllAsync(request);
+        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
+        var result = await _campaignService.GetAllAsync(request, userId);
         return Ok(result);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<CampaignDto>> GetById(int id)
     {
-        var result = await _campaignService.GetByIdAsync(id);
+        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
+        var result = await _campaignService.GetByIdAsync(id, userId);
         if (result == null) return NotFound(new { message = "Kampanja nije pronadjena." });
         return Ok(result);
     }

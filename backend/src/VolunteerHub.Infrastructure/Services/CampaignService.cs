@@ -16,7 +16,7 @@ public class CampaignService : ICampaignService
         _context = context;
     }
 
-    public async Task<PagedResultDto<CampaignDto>> GetAllAsync(SearchRequestDto request)
+    public async Task<PagedResultDto<CampaignDto>> GetAllAsync(SearchRequestDto request, int? userId = null)
     {
         var query = _context.Campaigns
             .Include(c => c.Donations)
@@ -37,7 +37,7 @@ public class CampaignService : ICampaignService
             .Take(pageSize)
             .ToListAsync();
 
-        var items = entities.Select(MapCampaign).ToList();
+        var items = entities.Select(c => MapCampaign(c, userId)).ToList();
 
         return new PagedResultDto<CampaignDto>
         {
@@ -48,14 +48,14 @@ public class CampaignService : ICampaignService
         };
     }
 
-    public async Task<CampaignDto?> GetByIdAsync(int id)
+    public async Task<CampaignDto?> GetByIdAsync(int id, int? userId = null)
     {
         var entity = await _context.Campaigns
             .Include(c => c.Donations)
             .Include(c => c.Organization)
             .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
-        return entity == null ? null : MapCampaign(entity);
+        return entity == null ? null : MapCampaign(entity, userId);
     }
 
     public async Task<CampaignDto> CreateAsync(CampaignCreateDto dto, int userId)
@@ -79,7 +79,7 @@ public class CampaignService : ICampaignService
         _context.Campaigns.Add(campaign);
         await _context.SaveChangesAsync();
 
-        return (await GetByIdAsync(campaign.Id))!;
+        return (await GetByIdAsync(campaign.Id, userId))!;
     }
 
     public async Task<bool> UpdateAsync(int id, CampaignCreateDto dto)
@@ -115,7 +115,7 @@ public class CampaignService : ICampaignService
         return true;
     }
 
-    private static CampaignDto MapCampaign(Campaign c) => new()
+    private static CampaignDto MapCampaign(Campaign c, int? userId = null) => new()
     {
         Id = c.Id,
         Title = c.Title,
@@ -129,6 +129,8 @@ public class CampaignService : ICampaignService
         IsFeatured = c.IsFeatured,
         DonationCount = c.Donations.Count(d => d.Status == DonationStatus.Completed),
         OrganizationName = c.Organization != null ? c.Organization.Name : null,
+        IsPaid = userId.HasValue && c.Donations.Any(d =>
+            d.UserId == userId.Value && d.Status == DonationStatus.Completed),
         CreatedAt = c.CreatedAt
     };
 
