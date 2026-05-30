@@ -187,21 +187,3 @@ Glavne cjeline:
 Swagger dokumentacija je dostupna na:
 
 - [http://localhost:7000/swagger](http://localhost:7000/swagger)
-
-## Minimalna provjera prije predaje
-
-- `docker compose up --build` prodje bez izmjene koda
-- Swagger login radi
-- desktop login radi
-- mobile login radi
-- protected endpoint bez tokena vraca `401`
-- admin endpoint sa volunteer korisnikom vraca `403`
-- PDF report export radi
-- payment ne moze biti evidentiran dva puta za isti payment intent
-- notification mark-as-read radi
-- recommended events vracaju explanation i reason
-
-## Napomena
-
-`recommender-dokumentacija.pdf` je finalni dokument za predaju recommender dijela.  
-`.env` ne treba commitovati; za predaju koristiti `.env.example` i po potrebi `env.zip` ako ga asistenti ili profesor traze po pravilima kursa.
