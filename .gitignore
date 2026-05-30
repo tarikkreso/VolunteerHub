@@ -83,10 +83,8 @@ $RECYCLE.BIN/
 !recommender-dokumentacija.pdf
 *.zip
 !env.zip
+!.env-tajne.zip
 !fit-build-*.zip
 !fit-build-*.zip.*
 *.7z
 *.rar
-
-# Local temp files
-tmpclaude-*-cwd
