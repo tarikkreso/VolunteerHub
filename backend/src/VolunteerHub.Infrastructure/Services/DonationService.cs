@@ -88,8 +88,8 @@ public class DonationService : IDonationService
 
     public async Task<PaymentIntentResponseDto> CreatePaymentIntentAsync(PaymentIntentRequestDto dto, int? userId)
     {
-        if (dto.Amount < 0.5m)
-            throw new InvalidOperationException("Iznos donacije mora biti najmanje 0.50 BAM.");
+        if (dto.Amount < 1m)
+            throw new InvalidOperationException("Iznos donacije mora biti najmanje 1.00 BAM.");
 
         var campaign = await _context.Campaigns.FirstOrDefaultAsync(c => c.Id == dto.CampaignId);
         if (campaign == null)
@@ -97,6 +97,68 @@ public class DonationService : IDonationService
 
         if (!campaign.IsActive || campaign.EndDate < DateTime.UtcNow)
             throw new InvalidOperationException("Donacija nije moguca jer kampanja nije aktivna.");
+
+        if (userId.HasValue)
+        {
+            var existingPayment = await _context.Donations
+                .Include(d => d.Campaign)
+                .Where(d => d.CampaignId == dto.CampaignId &&
+                            d.UserId == userId.Value &&
+                            (d.Status == DonationStatus.Pending || d.Status == DonationStatus.Completed))
+                .OrderByDescending(d => d.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (existingPayment?.Status == DonationStatus.Completed)
+            {
+                return new PaymentIntentResponseDto
+                {
+                    PaymentIntentId = existingPayment.StripePaymentIntentId ?? string.Empty,
+                    PaymentStatus = "completed",
+                    IsPaid = true
+                };
+            }
+
+            if (existingPayment != null && !string.IsNullOrWhiteSpace(existingPayment.StripePaymentIntentId))
+            {
+                var pendingPaymentIntent = await GetPaymentIntentAsync(existingPayment.StripePaymentIntentId);
+                if (string.Equals(pendingPaymentIntent.Status, "succeeded", StringComparison.OrdinalIgnoreCase))
+                {
+                    await RecordStripePaymentAsync(new StripeDonationCreateDto
+                    {
+                        Amount = existingPayment.Amount,
+                        CampaignId = existingPayment.CampaignId,
+                        IsAnonymous = existingPayment.IsAnonymous,
+                        DonorName = existingPayment.DonorName,
+                        Message = existingPayment.Message,
+                        PaymentIntentId = pendingPaymentIntent.Id,
+                        ChargeId = pendingPaymentIntent.LatestChargeId,
+                        Currency = pendingPaymentIntent.Currency?.ToUpperInvariant() ?? "BAM"
+                    }, userId);
+
+                    return new PaymentIntentResponseDto
+                    {
+                        PaymentIntentId = pendingPaymentIntent.Id,
+                        PaymentStatus = "completed",
+                        IsPaid = true
+                    };
+                }
+
+                if (!string.Equals(pendingPaymentIntent.Status, "canceled", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new PaymentIntentResponseDto
+                    {
+                        ClientSecret = pendingPaymentIntent.ClientSecret,
+                        PaymentIntentId = pendingPaymentIntent.Id,
+                        PublishableKey = GetStripeSetting("PublishableKey", "STRIPE_PUBLISHABLE_KEY") ?? string.Empty,
+                        PaymentStatus = pendingPaymentIntent.Status ?? "requires_payment_method",
+                        IsPaid = false
+                    };
+                }
+
+                existingPayment.Status = DonationStatus.Failed;
+                await _context.SaveChangesAsync();
+            }
+        }
 
         var stripeKey = GetStripeSetting("SecretKey", "STRIPE_SECRET_KEY");
         var publishableKey = GetStripeSetting("PublishableKey", "STRIPE_PUBLISHABLE_KEY");
@@ -125,13 +187,67 @@ public class DonationService : IDonationService
                 IdempotencyKey = BuildPaymentIntentIdempotencyKey(dto, userId)
             });
 
+        _context.Donations.Add(new Donation
+        {
+            Amount = dto.Amount,
+            Currency = "BAM",
+            Status = DonationStatus.Pending,
+            IsAnonymous = dto.IsAnonymous,
+            DonorName = dto.DonorName,
+            Message = dto.Message,
+            StripePaymentIntentId = paymentIntent.Id,
+            CampaignId = dto.CampaignId,
+            UserId = userId
+        });
+        await _context.SaveChangesAsync();
+
         return new PaymentIntentResponseDto
         {
             ClientSecret = paymentIntent.ClientSecret,
             PaymentIntentId = paymentIntent.Id,
             PublishableKey = publishableKey,
-            PaymentStatus = paymentIntent.Status ?? "requires_payment_method"
+            PaymentStatus = paymentIntent.Status ?? "requires_payment_method",
+            IsPaid = false
         };
+    }
+
+    public async Task<DonationDto> SyncStripePaymentAsync(string paymentIntentId, int userId, bool includeAll)
+    {
+        if (string.IsNullOrWhiteSpace(paymentIntentId))
+            throw new InvalidOperationException("Stripe PaymentIntent identifikator je obavezan.");
+
+        var existingDonation = await _context.Donations
+            .Include(d => d.Campaign)
+            .Where(d => d.StripePaymentIntentId == paymentIntentId)
+            .FirstOrDefaultAsync();
+        if (existingDonation?.Status == DonationStatus.Completed)
+            return MapDonation(existingDonation);
+
+        var paymentIntent = await GetSucceededPaymentIntentAsync(paymentIntentId);
+        if (!TryGetMetadataInt(paymentIntent, "campaignId", out var campaignId))
+            throw new InvalidOperationException("Stripe placanje nije vezano za kampanju.");
+
+        var metadataUserId = TryGetMetadataInt(paymentIntent, "userId");
+        if (!includeAll && metadataUserId != userId)
+            throw new UnauthorizedAccessException("Nemate pristup ovoj donaciji.");
+
+        var amount = paymentIntent.AmountReceived > 0
+            ? paymentIntent.AmountReceived / 100m
+            : paymentIntent.Amount / 100m;
+
+        var dto = new StripeDonationCreateDto
+        {
+            Amount = amount,
+            CampaignId = campaignId,
+            IsAnonymous = TryGetMetadataBool(paymentIntent, "isAnonymous"),
+            DonorName = TryGetMetadataString(paymentIntent, "donorName"),
+            Message = TryGetMetadataString(paymentIntent, "message"),
+            PaymentIntentId = paymentIntent.Id,
+            ChargeId = paymentIntent.LatestChargeId,
+            Currency = paymentIntent.Currency?.ToUpperInvariant() ?? "BAM"
+        };
+
+        return await RecordStripePaymentAsync(dto, metadataUserId);
     }
 
     public async Task<DonationDto> RecordStripePaymentAsync(StripeDonationCreateDto dto, int? userId)
@@ -142,7 +258,7 @@ public class DonationService : IDonationService
         var existingDonation = await _context.Donations
             .Include(d => d.Campaign)
             .FirstOrDefaultAsync(d => d.StripePaymentIntentId == dto.PaymentIntentId);
-        if (existingDonation != null)
+        if (existingDonation?.Status == DonationStatus.Completed)
             return MapDonation(existingDonation);
 
         var verifiedPaymentIntent = await VerifyPaymentIntentAsync(dto);
@@ -156,21 +272,24 @@ public class DonationService : IDonationService
         if (!campaign.IsActive)
             throw new InvalidOperationException("Donacija nije moguca jer je kampanja zatvorena.");
 
-        var donation = new Donation
+        var donation = existingDonation ?? new Donation
         {
-            Amount = dto.Amount,
-            Currency = string.IsNullOrWhiteSpace(dto.Currency) ? "BAM" : dto.Currency.ToUpperInvariant(),
-            Status = DonationStatus.Completed,
-            IsAnonymous = dto.IsAnonymous,
-            DonorName = dto.DonorName,
-            Message = dto.Message,
             StripePaymentIntentId = dto.PaymentIntentId,
-            StripeChargeId = dto.ChargeId ?? verifiedPaymentIntent.LatestChargeId,
-            CampaignId = dto.CampaignId,
-            UserId = userId
+            CampaignId = dto.CampaignId
         };
 
-        _context.Donations.Add(donation);
+        donation.Amount = dto.Amount;
+        donation.Currency = string.IsNullOrWhiteSpace(dto.Currency) ? "BAM" : dto.Currency.ToUpperInvariant();
+        donation.Status = DonationStatus.Completed;
+        donation.IsAnonymous = dto.IsAnonymous;
+        donation.DonorName = dto.DonorName;
+        donation.Message = dto.Message;
+        donation.StripeChargeId = dto.ChargeId ?? verifiedPaymentIntent.LatestChargeId;
+        donation.UserId = userId;
+
+        if (existingDonation == null)
+            _context.Donations.Add(donation);
+
         campaign.CurrentAmount += dto.Amount;
 
         if (userId.HasValue)
@@ -411,16 +530,7 @@ public class DonationService : IDonationService
 
     private async Task<PaymentIntent> VerifyPaymentIntentAsync(StripeDonationCreateDto dto)
     {
-        var stripeKey = GetStripeSetting("SecretKey", "STRIPE_SECRET_KEY");
-        if (string.IsNullOrWhiteSpace(stripeKey))
-            throw new InvalidOperationException("Stripe nije konfigurisan.");
-
-        StripeConfiguration.ApiKey = stripeKey;
-        var service = new PaymentIntentService();
-        var paymentIntent = await service.GetAsync(dto.PaymentIntentId);
-
-        if (!string.Equals(paymentIntent.Status, "succeeded", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Stripe placanje nije uspjesno zavrseno.");
+        var paymentIntent = await GetSucceededPaymentIntentAsync(dto.PaymentIntentId);
 
         var currency = paymentIntent.Currency?.ToUpperInvariant() ?? string.Empty;
         if (!string.Equals(currency, "BAM", StringComparison.OrdinalIgnoreCase))
@@ -441,6 +551,53 @@ public class DonationService : IDonationService
         }
 
         return paymentIntent;
+    }
+
+    private async Task<PaymentIntent> GetSucceededPaymentIntentAsync(string paymentIntentId)
+    {
+        var paymentIntent = await GetPaymentIntentAsync(paymentIntentId);
+
+        if (!string.Equals(paymentIntent.Status, "succeeded", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Stripe placanje nije uspjesno zavrseno.");
+
+        return paymentIntent;
+    }
+
+    private async Task<PaymentIntent> GetPaymentIntentAsync(string paymentIntentId)
+    {
+        var stripeKey = GetStripeSetting("SecretKey", "STRIPE_SECRET_KEY");
+        if (string.IsNullOrWhiteSpace(stripeKey))
+            throw new InvalidOperationException("Stripe nije konfigurisan.");
+
+        StripeConfiguration.ApiKey = stripeKey;
+        var service = new PaymentIntentService();
+        return await service.GetAsync(paymentIntentId);
+    }
+
+    private static bool TryGetMetadataBool(PaymentIntent paymentIntent, string key)
+    {
+        var value = TryGetMetadataString(paymentIntent, key);
+        return !string.IsNullOrWhiteSpace(value) && bool.TryParse(value, out var parsed) && parsed;
+    }
+
+    private static int? TryGetMetadataInt(PaymentIntent paymentIntent, string key)
+    {
+        return TryGetMetadataInt(paymentIntent, key, out var parsed) ? parsed : null;
+    }
+
+    private static bool TryGetMetadataInt(PaymentIntent paymentIntent, string key, out int parsed)
+    {
+        var value = TryGetMetadataString(paymentIntent, key);
+        return int.TryParse(value, out parsed);
+    }
+
+    private static string? TryGetMetadataString(PaymentIntent paymentIntent, string key)
+    {
+        return paymentIntent.Metadata != null &&
+               paymentIntent.Metadata.TryGetValue(key, out var value) &&
+               !string.IsNullOrWhiteSpace(value)
+            ? value
+            : null;
     }
 
     private static string BuildPaymentIntentIdempotencyKey(PaymentIntentRequestDto dto, int? userId)

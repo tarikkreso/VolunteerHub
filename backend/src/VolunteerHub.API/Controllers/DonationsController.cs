@@ -62,6 +62,31 @@ public class DonationsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("payment-intent/{paymentIntentId}/sync")]
+    public async Task<ActionResult<DonationDto>> SyncPaymentIntent(string paymentIntentId)
+    {
+        try
+        {
+            int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
+            var includeAll = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
+            var result = await _donationService.SyncStripePaymentAsync(paymentIntentId, userId, includeAll);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Payment intent sync failed for {PaymentIntentId}.", paymentIntentId);
+            return BadRequest(new { message = "Placanje je obradjeno, ali donacija trenutno nije evidentirana. Pokusajte osvjeziti kampanju." });
+        }
+    }
+
     [HttpPost("create-payment-intent")]
     public async Task<ActionResult<PaymentIntentResponseDto>> CreatePaymentIntent([FromBody] PaymentIntentRequestDto request)
     {

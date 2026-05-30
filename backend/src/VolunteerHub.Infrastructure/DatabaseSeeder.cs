@@ -89,16 +89,22 @@ public static class DatabaseSeeder
             }
         }
 
-        if (!await context.EventCategories.AnyAsync(c => c.Name == "Okolis"))
+        var eventCategories = new[]
         {
-            await context.EventCategories.AddRangeAsync(
-                new EventCategory { Name = "Okolis", Description = "Ekologija i akcije uredjenja prostora", IconUrl = "leaf", Color = "#4CAF50" },
-                new EventCategory { Name = "Edukacija", Description = "Mentorstvo, radionice i obuke", IconUrl = "school", Color = "#2196F3" },
-                new EventCategory { Name = "Humanitarno", Description = "Podrska zajednici i kriznim akcijama", IconUrl = "favorite", Color = "#E91E63" },
-                new EventCategory { Name = "Sport", Description = "Sportske i rekreativne aktivnosti", IconUrl = "sports_soccer", Color = "#FF9800" },
-                new EventCategory { Name = "Seniori", Description = "Podrska starijim osobama", IconUrl = "elderly", Color = "#00BCD4" },
-                new EventCategory { Name = "Digitalno", Description = "IT i administrativna podrska", IconUrl = "computer", Color = "#673AB7" }
-            );
+            new EventCategory { Name = "Okolis", Description = "Ekologija i akcije uredjenja prostora", IconUrl = "leaf", Color = "#4CAF50" },
+            new EventCategory { Name = "Edukacija", Description = "Mentorstvo, radionice i obuke", IconUrl = "school", Color = "#2196F3" },
+            new EventCategory { Name = "Humanitarno", Description = "Podrska zajednici i kriznim akcijama", IconUrl = "favorite", Color = "#E91E63" },
+            new EventCategory { Name = "Sport", Description = "Sportske i rekreativne aktivnosti", IconUrl = "sports_soccer", Color = "#FF9800" },
+            new EventCategory { Name = "Seniori", Description = "Podrska starijim osobama", IconUrl = "elderly", Color = "#00BCD4" },
+            new EventCategory { Name = "Digitalno", Description = "IT i administrativna podrska", IconUrl = "computer", Color = "#673AB7" }
+        };
+
+        foreach (var category in eventCategories)
+        {
+            if (!await context.EventCategories.AnyAsync(c => c.Name == category.Name))
+            {
+                context.EventCategories.Add(category);
+            }
         }
 
         var skills = new[]

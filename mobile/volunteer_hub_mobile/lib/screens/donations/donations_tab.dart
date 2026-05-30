@@ -90,7 +90,8 @@ class _DonationsTabState extends State<DonationsTab> {
     if (id == null) return;
     final index = _campaigns.indexWhere((c) => c['id'] == id);
     if (index < 0) {
-      if (!_loadingMore && (_totalCount == 0 || _campaigns.length < _totalCount)) {
+      if (!_loadingMore &&
+          (_totalCount == 0 || _campaigns.length < _totalCount)) {
         _loadMore().then((_) => _focusCampaign());
       }
       return;
@@ -207,6 +208,7 @@ class _DonationsTabState extends State<DonationsTab> {
     final pct = goal > 0 ? (raised / goal).clamp(0.0, 1.0) : 0.0;
     final donationCount = c['donationCount'] ?? 0;
     final imageUrl = _imageUrl(c);
+    final isPaid = c['isPaid'] == true;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -319,21 +321,45 @@ class _DonationsTabState extends State<DonationsTab> {
               ],
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+            if (isPaid)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: Colors.green.withValues(alpha: 0.35)),
                 ),
-                onPressed:
-                    c['isActive'] == true ? () => _showDonateDialog(c) : null,
-                icon: const Icon(Icons.volunteer_activism),
-                label: Text(
-                    c['isActive'] == true ? 'Doniraj' : 'Kampanja zatvorena'),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text(
+                      'Plaćeno',
+                      style: TextStyle(
+                          color: Colors.green, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed:
+                      c['isActive'] == true ? () => _showDonateDialog(c) : null,
+                  icon: const Icon(Icons.volunteer_activism),
+                  label: Text(
+                      c['isActive'] == true ? 'Doniraj' : 'Kampanja zatvorena'),
+                ),
               ),
-            ),
             const SizedBox(height: 8),
             if (donationCount > 0)
               TextButton.icon(
@@ -555,6 +581,13 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
       final publishableKey =
           data is Map ? data['publishableKey']?.toString() ?? '' : '';
       final demoMode = data is Map && data['demoMode'] == true;
+      final isPaid = data is Map && data['isPaid'] == true;
+
+      if (isPaid) {
+        if (!mounted) return;
+        Navigator.of(context).pop(true);
+        return;
+      }
 
       if (!demoMode) {
         if (publishableKey.isEmpty) {
@@ -576,7 +609,7 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
       }
 
       if (paymentIntentId != null && paymentIntentId.isNotEmpty) {
-        await _waitForServerDonation(paymentIntentId);
+        await _syncServerDonation(paymentIntentId);
       }
 
       if (!mounted) return;
@@ -604,10 +637,24 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
       if (!mounted) return;
       setState(() {
         _processing = false;
+        if (e is StateError && e.message.contains('server')) {
+          _errorText =
+              'Donacija je primljena. Kampanja ce biti osvjezena za nekoliko trenutaka.';
+          return;
+        }
         _errorText = e is StateError
             ? e.message
             : 'Greška pri donaciji. Pokušajte ponovo.';
       });
+    }
+  }
+
+  Future<void> _syncServerDonation(String paymentIntentId) async {
+    try {
+      await widget.api.syncDonationPaymentIntent(paymentIntentId);
+    } on DioException catch (e) {
+      if (e.response?.statusCode != 404) rethrow;
+      await _waitForServerDonation(paymentIntentId);
     }
   }
 
@@ -723,8 +770,8 @@ class _DonationCheckoutSheetState extends State<DonationCheckoutSheet> {
                   if (parsed <= 0) {
                     return 'Iznos mora biti veći od nule.';
                   }
-                  if (parsed < 0.5) {
-                    return 'Minimalan iznos donacije je 0.50 KM.';
+                  if (parsed < 1) {
+                    return 'Minimalan iznos donacije je 1.00 KM.';
                   }
                   if (parsed > 1000000) {
                     return 'Maksimalan iznos je 1.000.000 KM.';
