@@ -87,7 +87,8 @@ static void ApplyDerivedConfigurationFromDotEnv()
 {
 	SetFromEnvironment("RabbitMQ__Username", "RABBITMQ_USER");
 	SetFromEnvironment("RabbitMQ__Password", "RABBITMQ_PASSWORD");
-	SetFromEnvironment("RabbitMQ__Port", "RABBITMQ_PORT");
+	SetFromEnvironment("RabbitMQ__Host", "RABBITMQ_HOST");
+	SetFromEnvironment("RabbitMQ__Port", "RABBITMQ_INTERNAL_PORT");
 	SetFromEnvironment("Smtp__Host", "SMTP_HOST");
 	SetFromEnvironment("Smtp__Port", "SMTP_PORT");
 	SetFromEnvironment("Smtp__Username", "SMTP_USERNAME");

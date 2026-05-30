@@ -175,7 +175,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
 
@@ -239,7 +239,8 @@ static void ApplyDerivedConfigurationFromDotEnv()
     SetFromEnvironment("Jwt__Audience", "JWT_AUDIENCE");
     SetFromEnvironment("RabbitMQ__Username", "RABBITMQ_USER");
     SetFromEnvironment("RabbitMQ__Password", "RABBITMQ_PASSWORD");
-    SetFromEnvironment("RabbitMQ__Port", "RABBITMQ_PORT");
+    SetFromEnvironment("RabbitMQ__Host", "RABBITMQ_HOST");
+    SetFromEnvironment("RabbitMQ__Port", "RABBITMQ_INTERNAL_PORT");
     SetFromEnvironment("Stripe__SecretKey", "STRIPE_SECRET_KEY");
     SetFromEnvironment("Stripe__PublishableKey", "STRIPE_PUBLISHABLE_KEY");
     SetFromEnvironment("Stripe__WebhookSecret", "STRIPE_WEBHOOK_SECRET");

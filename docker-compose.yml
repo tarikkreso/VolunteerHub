@@ -2,13 +2,13 @@ services:
   # SQL Server Database
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
-    container_name: volunteerhub-sqlserver
+    container_name: ${SQLSERVER_CONTAINER_NAME:-volunteerhub-sqlserver}
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=${DB_PASSWORD}
-      - MSSQL_PID=Developer
+      - MSSQL_PID=${MSSQL_PID:-Developer}
     ports:
-      - "${SQL_PORT:-1433}:1433"
+      - "${SQL_HOST_PORT:-1433}:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
     networks:
@@ -23,13 +23,13 @@ services:
   # RabbitMQ Message Broker
   rabbitmq:
     image: rabbitmq:3.13-management
-    container_name: volunteerhub-rabbitmq
+    container_name: ${RABBITMQ_CONTAINER_NAME:-volunteerhub-rabbitmq}
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
     ports:
-      - "${RABBITMQ_PORT:-5672}:5672" # AMQP port
-      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672" # Management UI
+      - "${RABBITMQ_HOST_PORT:-5672}:5672" # AMQP port
+      - "${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672" # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -45,35 +45,35 @@ services:
     build:
       context: ./backend
       dockerfile: src/VolunteerHub.API/Dockerfile
-    container_name: volunteerhub-api
+    container_name: ${API_CONTAINER_NAME:-volunteerhub-api}
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=${DB_NAME:-220193};User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;
-      - RabbitMQ__Host=rabbitmq
-      - RabbitMQ__Port=${RABBITMQ_PORT:-5672}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=${ASPNETCORE_URLS:-http://+:80}
+      - ConnectionStrings__DefaultConnection=Server=${DB_HOST:-sqlserver},${DB_INTERNAL_PORT:-1433};Database=${DB_NAME};User Id=${DB_USER:-sa};Password=${DB_PASSWORD};TrustServerCertificate=${DB_TRUST_SERVER_CERTIFICATE:-True};
+      - RabbitMQ__Host=${RABBITMQ_HOST:-rabbitmq}
+      - RabbitMQ__Port=${RABBITMQ_INTERNAL_PORT:-5672}
       - RabbitMQ__Username=${RABBITMQ_USER}
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
       - Jwt__Key=${JWT_KEY}
-      - Jwt__Issuer=${JWT_ISSUER:-VolunteerHub}
-      - Jwt__Audience=${JWT_AUDIENCE:-VolunteerHub}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Jwt__Audience=${JWT_AUDIENCE}
       - Stripe__SecretKey=${STRIPE_SECRET_KEY}
       - Stripe__PublishableKey=${STRIPE_PUBLISHABLE_KEY}
       - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET}
-      - Smtp__Host=${SMTP_HOST:-mailhog}
-      - Smtp__Port=${SMTP_PORT:-1025}
+      - Smtp__Host=${SMTP_HOST}
+      - Smtp__Port=${SMTP_PORT}
       - Smtp__Username=${SMTP_USERNAME}
       - Smtp__Password=${SMTP_PASSWORD}
-      - Smtp__UseSsl=${SMTP_USE_SSL:-false}
-      - Smtp__FromEmail=${SMTP_FROM_EMAIL:-noreply@volunteerhub.ba}
-      - Smtp__FromName=${SMTP_FROM_NAME:-VolunteerHub}
-      - Auth__PasswordResetExpirationMinutes=30
-      - App__UseHttpsRedirection=false
-      - Cors__AllowedOrigins__0=${DESKTOP_CLIENT_URL:-http://localhost:7000}
-      - Cors__AllowedOrigins__1=${MOBILE_CLIENT_URL:-http://localhost:5000}
-      - Cors__AllowedOrigins__2=${API_CLIENT_URL:-http://127.0.0.1:7000}
+      - Smtp__UseSsl=${SMTP_USE_SSL}
+      - Smtp__FromEmail=${SMTP_FROM_EMAIL}
+      - Smtp__FromName=${SMTP_FROM_NAME}
+      - Auth__PasswordResetExpirationMinutes=${AUTH_PASSWORD_RESET_EXPIRATION_MINUTES}
+      - App__UseHttpsRedirection=${APP_USE_HTTPS_REDIRECTION}
+      - Cors__AllowedOrigins__0=${DESKTOP_CLIENT_URL}
+      - Cors__AllowedOrigins__1=${MOBILE_CLIENT_URL}
+      - Cors__AllowedOrigins__2=${API_CLIENT_URL}
     ports:
-      - "7000:80"
+      - "${API_HOST_PORT:-7000}:80"
     volumes:
       - ml_model_data:/app/ml_model
     depends_on:
@@ -92,21 +92,21 @@ services:
     build:
       context: ./backend
       dockerfile: src/VolunteerHub.Worker/Dockerfile
-    container_name: volunteerhub-worker
+    container_name: ${WORKER_CONTAINER_NAME:-volunteerhub-worker}
     environment:
-      - DOTNET_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=${DB_NAME:-220193};User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;
-      - RabbitMQ__Host=rabbitmq
-      - RabbitMQ__Port=${RABBITMQ_PORT:-5672}
+      - DOTNET_ENVIRONMENT=${DOTNET_ENVIRONMENT:-Production}
+      - ConnectionStrings__DefaultConnection=Server=${DB_HOST:-sqlserver},${DB_INTERNAL_PORT:-1433};Database=${DB_NAME};User Id=${DB_USER:-sa};Password=${DB_PASSWORD};TrustServerCertificate=${DB_TRUST_SERVER_CERTIFICATE:-True};
+      - RabbitMQ__Host=${RABBITMQ_HOST:-rabbitmq}
+      - RabbitMQ__Port=${RABBITMQ_INTERNAL_PORT:-5672}
       - RabbitMQ__Username=${RABBITMQ_USER}
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
-      - Smtp__Host=${SMTP_HOST:-mailhog}
-      - Smtp__Port=${SMTP_PORT:-1025}
+      - Smtp__Host=${SMTP_HOST}
+      - Smtp__Port=${SMTP_PORT}
       - Smtp__Username=${SMTP_USERNAME}
       - Smtp__Password=${SMTP_PASSWORD}
-      - Smtp__UseSsl=${SMTP_USE_SSL:-false}
-      - Smtp__FromEmail=${SMTP_FROM_EMAIL:-noreply@volunteerhub.ba}
-      - Smtp__FromName=${SMTP_FROM_NAME:-VolunteerHub}
+      - Smtp__UseSsl=${SMTP_USE_SSL}
+      - Smtp__FromEmail=${SMTP_FROM_EMAIL}
+      - Smtp__FromName=${SMTP_FROM_NAME}
     volumes:
       - ml_model_data:/app/ml_model
     depends_on:
@@ -123,10 +123,10 @@ services:
   # MailHog — email testing
   mailhog:
     image: mailhog/mailhog:v1.0.1
-    container_name: volunteerhub-mailhog
+    container_name: ${MAILHOG_CONTAINER_NAME:-volunteerhub-mailhog}
     ports:
-      - "${MAILHOG_SMTP_PORT:-1025}:1025"   # SMTP
-      - "${MAILHOG_WEB_PORT:-8025}:8025"   # Web UI
+      - "${MAILHOG_SMTP_HOST_PORT:-1025}:1025"   # SMTP
+      - "${MAILHOG_WEB_HOST_PORT:-8025}:8025"   # Web UI
     networks:
       - volunteerhub-network
 
