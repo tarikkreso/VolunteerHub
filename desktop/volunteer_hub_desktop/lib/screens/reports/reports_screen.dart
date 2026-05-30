@@ -652,7 +652,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final fullPath =
         '$home${Platform.pathSeparator}Downloads${Platform.pathSeparator}$fileName';
     await File(fullPath).writeAsBytes(bytes);
-    await Process.run('cmd', ['/c', 'start', '', fullPath]);
+    await Process.run('cmd', ['/c', 'start', '""', '"$fullPath"']);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

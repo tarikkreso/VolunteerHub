@@ -231,8 +231,7 @@ public class RecommendationTrainingService : BackgroundService
                 .ToListAsync(ct);
 
             // Clear old recommendations
-            var oldRecs = await context.EventRecommendations.ToListAsync(ct);
-            context.EventRecommendations.RemoveRange(oldRecs);
+            await context.EventRecommendations.ExecuteDeleteAsync(ct);
 
             foreach (var user in users)
             {

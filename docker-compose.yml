@@ -74,6 +74,8 @@ services:
       - Cors__AllowedOrigins__2=${API_CLIENT_URL:-http://127.0.0.1:7000}
     ports:
       - "7000:80"
+    volumes:
+      - ml_model_data:/app/ml_model
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -105,6 +107,8 @@ services:
       - Smtp__UseSsl=${SMTP_USE_SSL:-false}
       - Smtp__FromEmail=${SMTP_FROM_EMAIL:-noreply@volunteerhub.ba}
       - Smtp__FromName=${SMTP_FROM_NAME:-VolunteerHub}
+    volumes:
+      - ml_model_data:/app/ml_model
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -133,3 +137,4 @@ networks:
 volumes:
   sqlserver_data:
   rabbitmq_data:
+  ml_model_data:
