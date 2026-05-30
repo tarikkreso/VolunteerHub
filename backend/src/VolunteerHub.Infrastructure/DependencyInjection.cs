@@ -40,6 +40,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IRabbitMQProducerService, RabbitMQProducerService>();
 
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IEventService, EventService>();

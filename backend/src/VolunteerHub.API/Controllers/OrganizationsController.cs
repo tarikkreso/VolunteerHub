@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
@@ -12,10 +11,12 @@ namespace VolunteerHub.API.Controllers;
 public class OrganizationsController : ControllerBase
 {
     private readonly IOrganizationService _organizationService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public OrganizationsController(IOrganizationService organizationService)
+    public OrganizationsController(IOrganizationService organizationService, ICurrentUserService currentUserService)
     {
         _organizationService = organizationService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet]
@@ -37,7 +38,7 @@ public class OrganizationsController : ControllerBase
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<OrganizationDto>> Create([FromBody] OrganizationCreateDto dto)
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = _currentUserService.GetRequiredUserId();
         var result = await _organizationService.CreateAsync(dto, userId);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }

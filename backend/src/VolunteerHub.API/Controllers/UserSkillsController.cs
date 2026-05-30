@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
@@ -12,10 +11,12 @@ namespace VolunteerHub.API.Controllers;
 public class UserSkillsController : ControllerBase
 {
     private readonly IUserSkillService _userSkillService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public UserSkillsController(IUserSkillService userSkillService)
+    public UserSkillsController(IUserSkillService userSkillService, ICurrentUserService currentUserService)
     {
         _userSkillService = userSkillService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet("{userId:int}")]
@@ -29,7 +30,7 @@ public class UserSkillsController : ControllerBase
     [HttpGet("my")]
     public async Task<ActionResult<List<UserSkillDto>>> GetMySkills()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = _currentUserService.GetRequiredUserId();
         var result = await _userSkillService.GetByUserAsync(userId);
         return Ok(result);
     }
@@ -39,7 +40,7 @@ public class UserSkillsController : ControllerBase
     {
         try
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userId = _currentUserService.GetRequiredUserId();
             var result = await _userSkillService.AddAsync(userId, dto.SkillId, dto.ProficiencyLevel, dto.YearsExperience);
             return Ok(result);
         }
@@ -52,7 +53,7 @@ public class UserSkillsController : ControllerBase
     [HttpDelete("{skillId}")]
     public async Task<IActionResult> Remove(int skillId)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = _currentUserService.GetRequiredUserId();
         var success = await _userSkillService.RemoveAsync(userId, skillId);
         if (!success) return NotFound(new { message = "Vještina nije pronađena." });
         return NoContent();

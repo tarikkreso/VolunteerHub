@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
@@ -11,10 +10,12 @@ namespace VolunteerHub.API.Controllers;
 public class LeaderboardController : ControllerBase
 {
     private readonly ILeaderboardService _leaderboardService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public LeaderboardController(ILeaderboardService leaderboardService)
+    public LeaderboardController(ILeaderboardService leaderboardService, ICurrentUserService currentUserService)
     {
         _leaderboardService = leaderboardService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet]
@@ -36,9 +37,8 @@ public class LeaderboardController : ControllerBase
     [Authorize]
     public async Task<ActionResult<LeaderboardEntryDto>> GetUserRank(int userId)
     {
-        var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var isAdmin = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
-        if (!isAdmin && currentUserId != userId)
+        var currentUserId = _currentUserService.GetRequiredUserId();
+        if (!_currentUserService.IsAdmin && currentUserId != userId)
             return Forbid();
 
         var result = await _leaderboardService.GetUserRankAsync(userId);

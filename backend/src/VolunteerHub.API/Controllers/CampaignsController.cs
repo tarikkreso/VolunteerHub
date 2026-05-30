@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.API.Contracts;
@@ -13,16 +12,18 @@ namespace VolunteerHub.API.Controllers;
 public class CampaignsController : ControllerBase
 {
     private readonly ICampaignService _campaignService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public CampaignsController(ICampaignService campaignService)
+    public CampaignsController(ICampaignService campaignService, ICurrentUserService currentUserService)
     {
         _campaignService = campaignService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet]
     public async Task<ActionResult<PagedResultDto<CampaignDto>>> GetAll([FromQuery] SearchRequestDto request)
     {
-        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
+        var userId = _currentUserService.UserId ?? 0;
         var result = await _campaignService.GetAllAsync(request, userId);
         return Ok(result);
     }
@@ -30,7 +31,7 @@ public class CampaignsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<CampaignDto>> GetById(int id)
     {
-        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
+        var userId = _currentUserService.UserId ?? 0;
         var result = await _campaignService.GetByIdAsync(id, userId);
         if (result == null) return NotFound(new { message = "Kampanja nije pronadjena." });
         return Ok(result);
@@ -43,7 +44,7 @@ public class CampaignsController : ControllerBase
         var validation = ValidateCampaign(dto);
         if (validation != null) return validation;
 
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = _currentUserService.GetRequiredUserId();
         var result = await _campaignService.CreateAsync(dto, userId);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }

@@ -47,6 +47,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 });
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddHttpContextAccessor();
 
 ValidateConfiguration(builder.Configuration);
 

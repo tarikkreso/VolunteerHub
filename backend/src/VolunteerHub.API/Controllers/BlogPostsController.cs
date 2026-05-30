@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
@@ -12,10 +11,12 @@ namespace VolunteerHub.API.Controllers;
 public class BlogPostsController : ControllerBase
 {
     private readonly IBlogPostService _blogPostService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public BlogPostsController(IBlogPostService blogPostService)
+    public BlogPostsController(IBlogPostService blogPostService, ICurrentUserService currentUserService)
     {
         _blogPostService = blogPostService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet]
@@ -45,7 +46,7 @@ public class BlogPostsController : ControllerBase
     [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<ActionResult<BlogPostDto>> Create([FromBody] BlogPostCreateDto dto)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = _currentUserService.GetRequiredUserId();
         var result = await _blogPostService.CreateAsync(dto, userId);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }

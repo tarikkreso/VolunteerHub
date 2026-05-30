@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
@@ -12,10 +11,12 @@ namespace VolunteerHub.API.Controllers;
 public class ShiftRegistrationsController : ControllerBase
 {
     private readonly IShiftRegistrationService _service;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ShiftRegistrationsController(IShiftRegistrationService service)
+    public ShiftRegistrationsController(IShiftRegistrationService service, ICurrentUserService currentUserService)
     {
         _service = service;
+        _currentUserService = currentUserService;
     }
 
     [HttpPost("register/{shiftId}")]
@@ -160,7 +161,7 @@ public class ShiftRegistrationsController : ControllerBase
 
     private int GetUserId()
     {
-        return int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        return _currentUserService.GetRequiredUserId();
     }
 }
 

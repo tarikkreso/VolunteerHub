@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.API.Contracts;
@@ -14,11 +13,16 @@ public class EventsController : ControllerBase
 {
     private readonly IEventService _eventService;
     private readonly IRecommendationService _recommendationService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public EventsController(IEventService eventService, IRecommendationService recommendationService)
+    public EventsController(
+        IEventService eventService,
+        IRecommendationService recommendationService,
+        ICurrentUserService currentUserService)
     {
         _eventService = eventService;
         _recommendationService = recommendationService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet]
@@ -31,7 +35,7 @@ public class EventsController : ControllerBase
     [HttpGet("recommended")]
     public async Task<ActionResult<List<EventRecommendationDto>>> GetRecommended([FromQuery] int top = 5)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = _currentUserService.GetRequiredUserId();
         var result = await _recommendationService.GetRecommendationsAsync(userId, top);
         return Ok(result);
     }
@@ -51,7 +55,7 @@ public class EventsController : ControllerBase
         var validation = ValidateEventDates(dto.StartDate, dto.EndDate);
         if (validation != null) return validation;
 
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = _currentUserService.GetRequiredUserId();
         var result = await _eventService.CreateAsync(dto, userId);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }

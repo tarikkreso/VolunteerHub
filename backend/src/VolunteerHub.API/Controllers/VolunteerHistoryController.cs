@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
@@ -12,16 +11,20 @@ namespace VolunteerHub.API.Controllers;
 public class VolunteerHistoryController : ControllerBase
 {
     private readonly IVolunteerHistoryService _volunteerHistoryService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public VolunteerHistoryController(IVolunteerHistoryService volunteerHistoryService)
+    public VolunteerHistoryController(
+        IVolunteerHistoryService volunteerHistoryService,
+        ICurrentUserService currentUserService)
     {
         _volunteerHistoryService = volunteerHistoryService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet("me")]
     public async Task<ActionResult<List<VolunteerHistoryDto>>> GetMine()
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = _currentUserService.GetRequiredUserId();
         return Ok(await _volunteerHistoryService.GetByUserAsync(userId));
     }
 

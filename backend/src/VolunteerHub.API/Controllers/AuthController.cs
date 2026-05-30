@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.API.Contracts;
@@ -12,10 +11,12 @@ namespace VolunteerHub.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, ICurrentUserService currentUserService)
     {
         _authService = authService;
+        _currentUserService = currentUserService;
     }
 
     [HttpPost("login")]
@@ -90,7 +91,7 @@ public class AuthController : ControllerBase
     [Authorize]
     public async Task<ActionResult<UserDto>> GetCurrentUser()
     {
-        var userId = GetUserId();
+        var userId = _currentUserService.GetRequiredUserId();
         var user = await _authService.GetCurrentUserAsync(userId);
         return Ok(user);
     }
@@ -99,7 +100,7 @@ public class AuthController : ControllerBase
     [Authorize]
     public async Task<ActionResult<UserStatsDto>> GetMyStats()
     {
-        var userId = GetUserId();
+        var userId = _currentUserService.GetRequiredUserId();
         var stats = await _authService.GetUserStatsAsync(userId);
         return Ok(stats);
     }
@@ -122,7 +123,7 @@ public class AuthController : ControllerBase
 
         try
         {
-            var userId = GetUserId();
+            var userId = _currentUserService.GetRequiredUserId();
             var updateDto = new UserUpdateDto
             {
                 FirstName = dto.FirstName,
@@ -147,13 +148,5 @@ public class AuthController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
-    }
-
-    protected int GetUserId()
-    {
-        var claim = User.FindFirst(ClaimTypes.NameIdentifier);
-        if (claim == null || !int.TryParse(claim.Value, out var userId))
-            throw new UnauthorizedAccessException("Nevazeci identifikator korisnika.");
-        return userId;
     }
 }

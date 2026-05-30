@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
@@ -12,11 +11,16 @@ namespace VolunteerHub.API.Controllers;
 public class DonationsController : ControllerBase
 {
     private readonly IDonationService _donationService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<DonationsController> _logger;
 
-    public DonationsController(IDonationService donationService, ILogger<DonationsController> logger)
+    public DonationsController(
+        IDonationService donationService,
+        ICurrentUserService currentUserService,
+        ILogger<DonationsController> logger)
     {
         _donationService = donationService;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -30,8 +34,8 @@ public class DonationsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<DonationDto>> GetById(int id)
     {
-        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
-        var includeAll = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
+        var userId = _currentUserService.UserId ?? 0;
+        var includeAll = _currentUserService.IsAdmin;
         var result = await _donationService.GetByIdForUserAsync(id, userId, includeAll);
         if (result == null) return NotFound(new { message = "Donacija nije pronadjena." });
         return Ok(result);
@@ -47,7 +51,7 @@ public class DonationsController : ControllerBase
     [HttpGet("me")]
     public async Task<ActionResult<PagedResultDto<DonationDto>>> GetMine([FromQuery] SearchRequestDto request)
     {
-        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
+        var userId = _currentUserService.GetRequiredUserId();
         var result = await _donationService.GetByUserAsync(userId, request);
         return Ok(result);
     }
@@ -55,8 +59,8 @@ public class DonationsController : ControllerBase
     [HttpGet("payment-intent/{paymentIntentId}")]
     public async Task<ActionResult<DonationDto>> GetByPaymentIntent(string paymentIntentId)
     {
-        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
-        var includeAll = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
+        var userId = _currentUserService.UserId ?? 0;
+        var includeAll = _currentUserService.IsAdmin;
         var result = await _donationService.GetByPaymentIntentForUserAsync(paymentIntentId, userId, includeAll);
         if (result == null) return NotFound(new { message = "Donacija jos nije evidentirana." });
         return Ok(result);
@@ -67,8 +71,8 @@ public class DonationsController : ControllerBase
     {
         try
         {
-            int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
-            var includeAll = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
+            var userId = _currentUserService.UserId ?? 0;
+            var includeAll = _currentUserService.IsAdmin;
             var result = await _donationService.SyncStripePaymentAsync(paymentIntentId, userId, includeAll);
             return Ok(result);
         }
@@ -98,7 +102,7 @@ public class DonationsController : ControllerBase
                 request.IdempotencyKey = idempotencyHeader.FirstOrDefault();
             }
 
-            int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId);
+            var userId = _currentUserService.UserId ?? 0;
             var result = await _donationService.CreatePaymentIntentAsync(request, userId);
             return Ok(result);
         }

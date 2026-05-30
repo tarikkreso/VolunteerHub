@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
@@ -12,16 +11,18 @@ namespace VolunteerHub.API.Controllers;
 public class NotificationsController : ControllerBase
 {
     private readonly INotificationService _notificationService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public NotificationsController(INotificationService notificationService)
+    public NotificationsController(INotificationService notificationService, ICurrentUserService currentUserService)
     {
         _notificationService = notificationService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet]
     public async Task<ActionResult<List<NotificationDto>>> GetMyNotifications()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = _currentUserService.GetRequiredUserId();
         var result = await _notificationService.GetByUserAsync(userId);
         return Ok(result);
     }
@@ -29,7 +30,7 @@ public class NotificationsController : ControllerBase
     [HttpPut("{id}/read")]
     public async Task<IActionResult> MarkAsRead(int id)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = _currentUserService.GetRequiredUserId();
         var success = await _notificationService.MarkAsReadAsync(id, userId);
         if (!success) return NotFound();
         return NoContent();
@@ -38,7 +39,7 @@ public class NotificationsController : ControllerBase
     [HttpPut("read-all")]
     public async Task<IActionResult> MarkAllAsRead()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = _currentUserService.GetRequiredUserId();
         await _notificationService.MarkAllAsReadAsync(userId);
         return NoContent();
     }

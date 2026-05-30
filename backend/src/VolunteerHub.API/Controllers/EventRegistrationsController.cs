@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VolunteerHub.Application.DTOs;
@@ -12,16 +11,20 @@ namespace VolunteerHub.API.Controllers;
 public class EventRegistrationsController : ControllerBase
 {
     private readonly IEventRegistrationService _eventRegistrationService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public EventRegistrationsController(IEventRegistrationService eventRegistrationService)
+    public EventRegistrationsController(
+        IEventRegistrationService eventRegistrationService,
+        ICurrentUserService currentUserService)
     {
         _eventRegistrationService = eventRegistrationService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet("me")]
     public async Task<ActionResult<List<EventRegistrationDto>>> GetMine()
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = _currentUserService.GetRequiredUserId();
         return Ok(await _eventRegistrationService.GetByUserAsync(userId));
     }
 
@@ -37,7 +40,7 @@ public class EventRegistrationsController : ControllerBase
     {
         try
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = _currentUserService.GetRequiredUserId();
             var result = await _eventRegistrationService.RegisterAsync(userId, dto);
             return Ok(result);
         }
@@ -57,7 +60,7 @@ public class EventRegistrationsController : ControllerBase
         if (string.IsNullOrWhiteSpace(reason))
             return BadRequest(new { message = "Razlog otkazivanja je obavezan." });
 
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = _currentUserService.GetRequiredUserId();
         var success = await _eventRegistrationService.CancelAsync(registrationId, userId, reason);
         if (!success)
             return NotFound(new { message = "Prijava na događaj nije pronađena." });
